@@ -10,6 +10,10 @@ import { createOrder } from "@/actions/orders";
 import { createOrderSchema, type CreateOrderInput } from "@/lib/schemas";
 import { formatCurrency } from "@/lib/utils";
 import { SizeMatrixInput } from "@/components/orders/size-matrix-input";
+import {
+  ProductTemplatePicker,
+  type ProductTemplateOption,
+} from "@/components/orders/product-template-picker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,24 +43,13 @@ const initialValues: CreateOrderInput = {
   items: [makeItem()],
 };
 
-type ProductTemplate = {
-  id: string;
-  name: string;
-  description: string | null;
-  material: string | null;
-  defaultPrice: number | null;
-};
-
 export function CreateOrderForm({
   productTemplates,
 }: {
-  productTemplates: ProductTemplate[];
+  productTemplates: ProductTemplateOption[];
 }) {
   const router = useRouter();
   const [serverError, setServerError] = useState("");
-  const [selectedTemplates, setSelectedTemplates] = useState<
-    Record<string, string>
-  >({});
   const form = useForm<CreateOrderInput>({
     resolver: zodResolver(createOrderSchema),
     defaultValues: initialValues,
@@ -162,58 +155,32 @@ export function CreateOrderForm({
             </CardHeader>
             <CardContent className="space-y-5">
               {productTemplates.length ? (
-                <label className="block space-y-2 text-sm font-medium text-slate-800">
-                  Isi dari template (opsional)
-                  <select
-                    value={selectedTemplates[field.id] ?? ""}
-                    onChange={(event) => {
-                      const template = productTemplates.find(
-                        (product) => product.id === event.target.value,
-                      );
-                      setSelectedTemplates((current) => ({
-                        ...current,
-                        [field.id]: event.target.value,
-                      }));
-                      if (!template) return;
-
-                      form.setValue(`items.${index}.name`, template.name, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
+                <ProductTemplatePicker
+                  products={productTemplates}
+                  onSelect={(template) => {
+                    form.setValue(`items.${index}.name`, template.name, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                    form.setValue(
+                      `items.${index}.material`,
+                      template.material ?? "",
+                      { shouldDirty: true },
+                    );
+                    form.setValue(
+                      `items.${index}.description`,
+                      template.description ?? "",
+                      { shouldDirty: true },
+                    );
+                    if (template.defaultPrice !== null) {
                       form.setValue(
-                        `items.${index}.material`,
-                        template.material ?? "",
-                        { shouldDirty: true },
+                        `items.${index}.pricePerPiece`,
+                        template.defaultPrice,
+                        { shouldDirty: true, shouldValidate: true },
                       );
-                      form.setValue(
-                        `items.${index}.description`,
-                        template.description ?? "",
-                        { shouldDirty: true },
-                      );
-                      if (template.defaultPrice !== null) {
-                        form.setValue(
-                          `items.${index}.pricePerPiece`,
-                          template.defaultPrice,
-                          { shouldDirty: true, shouldValidate: true },
-                        );
-                      }
-                    }}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">Produk custom / pilih template</option>
-                    {productTemplates.map((product) => (
-                      <option key={product.id} value={product.id}>
-                        {product.name}
-                        {product.defaultPrice === null
-                          ? " · harga menyesuaikan"
-                          : ` · ${formatCurrency(product.defaultPrice)}/pcs`}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="block text-xs font-normal text-slate-500">
-                    Nama, bahan, spesifikasi, dan harga bisa diubah untuk order ini.
-                  </span>
-                </label>
+                    }
+                  }}
+                />
               ) : null}
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field

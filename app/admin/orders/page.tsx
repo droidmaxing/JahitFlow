@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight, Plus, Search, Scissors } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Search, Scissors } from "lucide-react";
 import { ProductionStatus } from "@prisma/client";
 import { PaymentBadge, StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ export const metadata: Metadata = { title: "Daftar pesanan" };
 export const dynamic = "force-dynamic";
 
 type PageProps = {
-  searchParams: Promise<{ status?: string; q?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; page?: string }>;
 };
 
 export default async function OrdersPage({ searchParams }: PageProps) {
@@ -35,26 +35,52 @@ export default async function OrdersPage({ searchParams }: PageProps) {
     ? (query.status as ProductionStatus)
     : undefined;
   const search = query.q?.trim().slice(0, 100) ?? "";
-  const orders = await prisma.order.findMany({
-    where: {
-      ...(status ? { status } : {}),
-      ...(search
-        ? {
-            OR: [
-              { orderNumber: { contains: search } },
-              { customerName: { contains: search } },
-              { customerPhone: { contains: search } },
-            ],
-          }
-        : {}),
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-    include: {
-      items: { select: { totalPcs: true } },
-      payments: { select: { amount: true } },
-    },
-  });
+  const requestedPage = Number.parseInt(query.page ?? "1", 10);
+  const pageSize = 25;
+  const normalizedPage =
+    Number.isSafeInteger(requestedPage) && requestedPage > 0
+      ? requestedPage
+      : 1;
+  const where = {
+    ...(status ? { status } : {}),
+    ...(search
+      ? {
+          OR: [
+            { orderNumber: { contains: search } },
+            { customerName: { contains: search } },
+            { customerPhone: { contains: search } },
+          ],
+        }
+      : {}),
+  };
+  const findOrders = (page: number) =>
+    prisma.order.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: {
+        items: { select: { totalPcs: true } },
+        payments: { select: { amount: true } },
+      },
+    });
+  const [totalOrders, requestedOrders] = await Promise.all([
+    prisma.order.count({ where }),
+    findOrders(normalizedPage),
+  ]);
+  const totalPages = Math.max(1, Math.ceil(totalOrders / pageSize));
+  const currentPage = Math.min(normalizedPage, totalPages);
+  const orders =
+    currentPage === normalizedPage
+      ? requestedOrders
+      : await findOrders(currentPage);
+  const ordersHref = (page: number) => {
+    const params = new URLSearchParams();
+    if (search) params.set("q", search);
+    if (status) params.set("status", status);
+    params.set("page", String(page));
+    return `/admin/orders?${params.toString()}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -194,8 +220,41 @@ export default async function OrdersPage({ searchParams }: PageProps) {
               </TableBody>
             </Table>
           </div>
-          <div className="border-t border-slate-100 px-5 py-3 text-xs text-slate-500">
-            {orders.length} pesanan ditampilkan (maksimal 100)
+          <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+            <p aria-live="polite">
+              {totalOrders === 0
+                ? "0 pesanan"
+                : `Menampilkan ${(currentPage - 1) * pageSize + 1}–${Math.min(
+                    currentPage * pageSize,
+                    totalOrders,
+                  )} dari ${totalOrders} pesanan`}
+            </p>
+            {totalPages > 1 ? (
+              <nav
+                aria-label="Navigasi halaman pesanan"
+                className="flex items-center justify-between gap-2 sm:justify-end"
+              >
+                {currentPage > 1 ? (
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={ordersHref(currentPage - 1)}>
+                      <ArrowLeft aria-hidden="true" />
+                      Sebelumnya
+                    </Link>
+                  </Button>
+                ) : null}
+                <span className="whitespace-nowrap px-1">
+                  Halaman {currentPage} dari {totalPages}
+                </span>
+                {currentPage < totalPages ? (
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={ordersHref(currentPage + 1)}>
+                      Berikutnya
+                      <ArrowRight aria-hidden="true" />
+                    </Link>
+                  </Button>
+                ) : null}
+              </nav>
+            ) : null}
           </div>
         </CardContent>
       </Card>

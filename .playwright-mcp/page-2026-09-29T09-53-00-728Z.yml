@@ -1,0 +1,23 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - link "jahitflow" [ref=e4] [cursor=pointer]:
+        - /url: /
+      - generic [ref=e13]:
+        - paragraph [ref=e14]: AREA ADMIN
+        - heading "Selamat datang kembali" [level=1] [ref=e15]
+        - paragraph [ref=e16]: Masuk untuk mengelola pesanan dan progres produksi.
+        - generic [ref=e17]:
+          - generic [ref=e18]:
+            - text: Email
+            - textbox "Email" [ref=e19]:
+              - /placeholder: nama@konveksi.id
+          - generic [ref=e20]:
+            - text: Kata sandi
+            - textbox "Kata sandi" [ref=e21]
+          - button "Masuk ke dashboard" [ref=e22]
+        - link "Kembali ke halaman utama" [ref=e23] [cursor=pointer]:
+          - /url: /
+      - paragraph [ref=e26]: "Akun awal disiapkan melalui proses seed lokal. Kata sandi tersimpan di file `.env` dan tidak ditampilkan pada aplikasi."
+  - region "Notifications alt+T"
+  - alert [ref=e27]

@@ -209,7 +209,17 @@ export function ProductCatalogManager({
             Daftar template <span className="text-slate-500">({products.length})</span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent
+          role="region"
+          aria-label="Daftar template produk"
+          tabIndex={0}
+          className="max-h-[70vh] space-y-3 overflow-y-auto overscroll-contain"
+        >
+          {products.length > 6 ? (
+            <p className="text-xs text-slate-500">
+              Gulir daftar ini untuk melihat semua template.
+            </p>
+          ) : null}
           {products.length ? (
             products.map((product) => (
               <article

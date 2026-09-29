@@ -172,7 +172,18 @@ export function AdminAccountsManager({ admins }: { admins: AdminAccount[] }) {
           </div>
         </div>
         {admins.length ? (
-          admins.map((admin) => (
+          <div
+            role="region"
+            aria-label="Daftar akun admin"
+            tabIndex={0}
+            className="max-h-[70vh] space-y-3 overflow-y-auto overscroll-contain pr-1"
+          >
+            {admins.length > 4 ? (
+              <p className="text-xs text-slate-500">
+                Gulir daftar ini untuk melihat semua akun.
+              </p>
+            ) : null}
+            {admins.map((admin) => (
             <Card key={admin.id} className="rounded-2xl shadow-sm">
               {editingId === admin.id ? (
                 <CardContent className="pt-4">
@@ -294,7 +305,8 @@ export function AdminAccountsManager({ admins }: { admins: AdminAccount[] }) {
                 </CardContent>
               )}
             </Card>
-          ))
+            ))}
+          </div>
         ) : (
           <Card className="rounded-2xl border-dashed shadow-none">
             <CardContent className="py-10 text-center">

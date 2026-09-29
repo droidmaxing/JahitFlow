@@ -58,11 +58,11 @@ export function KanbanBoard({ orders }: { orders: ProductionCard[] }) {
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="grid min-h-[540px] auto-cols-[minmax(260px,1fr)] grid-flow-col gap-3 overflow-x-auto pb-4">
+      <div className="grid h-[min(72vh,48rem)] min-h-[540px] auto-cols-[minmax(260px,1fr)] grid-flow-col gap-3 overflow-x-auto pb-4">
         {productionStatuses.map((status) => {
           const columnOrders = orders.filter((order) => order.status === status);
           return (
-            <section key={status} aria-label={`${statusLabels[status]}: ${columnOrders.length} pesanan`} className="flex min-h-[520px] flex-col rounded-2xl bg-slate-100/80 p-3">
+            <section key={status} aria-label={`${statusLabels[status]}: ${columnOrders.length} pesanan`} className="flex min-h-0 flex-col rounded-2xl bg-slate-100/80 p-3">
               <header className="flex items-center justify-between gap-2 px-1 pb-3 pt-1">
                 <div className="flex items-center gap-2">
                   <span className={`size-2 rounded-full ${status === "COMPLETED" ? "bg-emerald-500" : status === "CANCELLED" ? "bg-rose-500" : "bg-blue-500"}`} />
@@ -79,7 +79,9 @@ export function KanbanBoard({ orders }: { orders: ProductionCard[] }) {
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`flex flex-1 flex-col gap-2.5 rounded-xl transition-colors ${
+                    tabIndex={0}
+                    aria-label={`Daftar pesanan tahap ${statusLabels[status]}`}
+                    className={`min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-xl pr-1 transition-colors ${
                       snapshot.isDraggingOver ? "bg-blue-100/70" : ""
                     }`}
                   >

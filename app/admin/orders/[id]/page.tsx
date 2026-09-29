@@ -49,6 +49,40 @@ export default async function OrderDetailPage({ params }: PageProps) {
   const outstanding = Math.max(0, Number(order.total) - paid);
   const canHandover =
     order.status === ProductionStatus.READY_FOR_PICKUP && outstanding === 0;
+  const visibleStatusLogs = order.statusLogs.slice(0, 4);
+  const olderStatusLogs = order.statusLogs.slice(4);
+  const visiblePayments = order.payments.slice(0, 3);
+  const olderPayments = order.payments.slice(3);
+  const renderStatusLog = (log: (typeof order.statusLogs)[number]) => (
+    <div key={log.id} className="flex gap-3">
+      <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" />
+      <div>
+        <p className="text-sm font-medium text-slate-900">
+          {log.toStatus.replaceAll("_", " ")}
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          {log.note || "Status diperbarui"} · {log.changedByName} ·{" "}
+          {formatDateTime(log.changedAt)}
+        </p>
+      </div>
+    </div>
+  );
+  const renderPayment = (payment: (typeof order.payments)[number]) => (
+    <div key={payment.id} className="flex justify-between gap-3">
+      <div>
+        <p className="text-sm font-medium text-slate-800">
+          {payment.note || payment.method}
+        </p>
+        <p className="mt-0.5 text-xs text-slate-500">
+          {formatDateTime(payment.paidAt)} · Dicatat oleh{" "}
+          {payment.recordedByName}
+        </p>
+      </div>
+      <p className="whitespace-nowrap text-sm font-semibold">
+        {formatCurrency(payment.amount.toString())}
+      </p>
+    </div>
+  );
 
   return (
     <div className="order-detail-page space-y-6">
@@ -162,20 +196,17 @@ export default async function OrderDetailPage({ params }: PageProps) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {order.statusLogs.map((log) => (
-                <div key={log.id} className="flex gap-3">
-                  <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" />
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">
-                      {log.toStatus.replaceAll("_", " ")}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {log.note || "Status diperbarui"} · {log.changedByName} ·{" "}
-                      {formatDateTime(log.changedAt)}
-                    </p>
+              {visibleStatusLogs.map(renderStatusLog)}
+              {olderStatusLogs.length ? (
+                <details className="rounded-lg border border-slate-200 px-3 py-2">
+                  <summary className="cursor-pointer text-sm font-medium text-primary outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                    Lihat {olderStatusLogs.length} riwayat status sebelumnya
+                  </summary>
+                  <div className="mt-4 max-h-64 space-y-4 overflow-y-auto overscroll-contain pr-2">
+                    {olderStatusLogs.map(renderStatusLog)}
                   </div>
-                </div>
-              ))}
+                </details>
+              ) : null}
             </CardContent>
           </Card>
         </div>
@@ -203,22 +234,17 @@ export default async function OrderDetailPage({ params }: PageProps) {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {order.payments.map((payment) => (
-                  <div key={payment.id} className="flex justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">
-                        {payment.note || payment.method}
-                      </p>
-                      <p className="mt-0.5 text-xs text-slate-500">
-                        {formatDateTime(payment.paidAt)} · Dicatat oleh{" "}
-                        {payment.recordedByName}
-                      </p>
+                {visiblePayments.map(renderPayment)}
+                {olderPayments.length ? (
+                  <details className="rounded-lg border border-slate-200 px-3 py-2">
+                    <summary className="cursor-pointer text-sm font-medium text-primary outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                      Lihat {olderPayments.length} pembayaran sebelumnya
+                    </summary>
+                    <div className="mt-4 max-h-64 space-y-3 overflow-y-auto overscroll-contain pr-2">
+                      {olderPayments.map(renderPayment)}
                     </div>
-                    <p className="whitespace-nowrap text-sm font-semibold">
-                      {formatCurrency(payment.amount.toString())}
-                    </p>
-                  </div>
-                ))}
+                  </details>
+                ) : null}
                 {!order.payments.length ? (
                   <p className="text-sm text-slate-500">Belum ada pembayaran.</p>
                 ) : null}
