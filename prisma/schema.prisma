@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+}
+
+enum PaymentStatus {
+  UNPAID
+  DP_PAID
+  FULLY_PAID
+}
+
+enum ProductionStatus {
+  WAITING
+  CUTTING
+  PRINTING_EMBROIDERY
+  SEWING
+  QC_PACKING
+  READY_FOR_PICKUP
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id            String        @id @default(cuid())
+  name          String        @db.VarChar(120)
+  email         String        @unique @db.VarChar(191)
+  passwordHash  String        @db.VarChar(255)
+  role          Role          @default(ADMIN)
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  createdOrders Order[]       @relation("OrderCreator")
+  paymentLogs   PaymentLog[]
+  statusLogs    StatusLog[]
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String   @db.VarChar(120)
+  phone     String   @unique @db.VarChar(30)
+  email     String?  @db.VarChar(191)
+  address   String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+
+  @@index([name])
+}
+
+model Order {
+  id                String           @id @default(cuid())
+  orderNumber       String           @unique @db.VarChar(15)
+  customerId        String
+  createdById       String
+  status            ProductionStatus @default(WAITING)
+  paymentStatus     PaymentStatus    @default(UNPAID)
+  dueDate           DateTime?
+  notes             String?          @db.Text
+  subtotal          Decimal          @db.Decimal(12, 2)
+  discount          Decimal          @default(0) @db.Decimal(12, 2)
+  total             Decimal          @db.Decimal(12, 2)
+  signatureDataUrl  String?          @db.LongText
+  completedAt       DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  customer          Customer         @relation(fields: [customerId], references: [id])
+  createdBy         User             @relation("OrderCreator", fields: [createdById], references: [id])
+  items             OrderItem[]
+  payments          PaymentLog[]
+  statusLogs        StatusLog[]
+
+  @@index([status, createdAt])
+  @@index([paymentStatus])
+  @@index([dueDate])
+}
+
+model OrderItem {
+  id             String           @id @default(cuid())
+  orderId        String
+  name           String           @db.VarChar(160)
+  description    String?          @db.Text
+  material       String?          @db.VarChar(160)
+  pricePerPiece  Decimal          @db.Decimal(12, 2)
+  totalPcs       Int
+  subtotal       Decimal          @db.Decimal(12, 2)
+  order           Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sizes           OrderItemSize[]
+
+  @@index([orderId])
+}
+
+model OrderItemSize {
+  id          String    @id @default(cuid())
+  orderItemId String
+  size        String    @db.VarChar(32)
+  quantity    Int
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@unique([orderItemId, size])
+}
+
+model PaymentLog {
+  id           String   @id @default(cuid())
+  orderId      String
+  recordedById String
+  amount       Decimal  @db.Decimal(12, 2)
+  method       String   @db.VarChar(40)
+  note         String?  @db.VarChar(255)
+  paidAt       DateTime @default(now())
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  recordedBy   User     @relation(fields: [recordedById], references: [id])
+
+  @@index([orderId, paidAt])
+}
+
+model StatusLog {
+  id          String           @id @default(cuid())
+  orderId     String
+  changedById String
+  fromStatus  ProductionStatus?
+  toStatus    ProductionStatus
+  note        String?          @db.VarChar(255)
+  changedAt   DateTime         @default(now())
+  order       Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  changedBy   User             @relation(fields: [changedById], references: [id])
+
+  @@index([orderId, changedAt])
+}
