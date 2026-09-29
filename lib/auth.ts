@@ -17,8 +17,9 @@ function getSessionSecret() {
   return new TextEncoder().encode(secret);
 }
 
-export async function createSession(userId: string) {
-  const token = await new SignJWT({ sub: userId })
+export async function createSession(userId: string, sessionVersion: number) {
+  const token = await new SignJWT({ sv: sessionVersion })
+    .setSubject(userId)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuer(sessionIssuer)
     .setIssuedAt()
@@ -49,12 +50,30 @@ export async function getCurrentUser() {
       issuer: sessionIssuer,
       algorithms: ["HS256"],
     });
-    if (typeof payload.sub !== "string") return null;
+    if (
+      typeof payload.sub !== "string" ||
+      (typeof payload.sv !== "number" && payload.sv !== undefined)
+    ) {
+      return null;
+    }
 
-    return await prisma.user.findFirst({
+    const user = await prisma.user.findFirst({
       where: { id: payload.sub, isActive: true },
-      select: { id: true, name: true, email: true, role: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        sessionVersion: true,
+      },
     });
+    if (!user || (payload.sv ?? 0) !== user.sessionVersion) return null;
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    };
   } catch (error) {
     if (
       error instanceof Error &&

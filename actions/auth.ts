@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { clearSession, createSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/schemas";
+import { actionErrorMessage } from "@/lib/action-error-message";
 
 export type LoginState = { error?: string };
 
@@ -23,19 +24,31 @@ export async function signInAction(
     };
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: parsed.data.email.toLowerCase() },
-  });
+  let user;
+  try {
+    user = await prisma.user.findUnique({
+      where: { email: parsed.data.email.toLowerCase() },
+    });
 
-  if (
-    !user ||
-    !user.isActive ||
-    !(await compare(parsed.data.password, user.passwordHash))
-  ) {
-    return { error: "Email atau kata sandi tidak sesuai." };
+    if (
+      !user ||
+      !user.isActive ||
+      !(await compare(parsed.data.password, user.passwordHash))
+    ) {
+      return { error: "Email atau kata sandi tidak sesuai." };
+    }
+
+    await createSession(user.id, user.sessionVersion);
+  } catch (error) {
+    return {
+      error: actionErrorMessage(
+        error,
+        "signInAction",
+        "Layanan login sedang mengalami gangguan. Silakan coba lagi beberapa saat.",
+      ),
+    };
   }
 
-  await createSession(user.id);
   redirect("/admin/dashboard");
 }
 

@@ -60,4 +60,35 @@ export const paymentSchema = z.object({
   note: z.string().trim().max(255).optional(),
 });
 
+export const whatsappNumberSchema = z
+  .string()
+  .trim()
+  .transform((value) => value.replace(/\D/g, ""))
+  .refine(
+    (value) => value.length >= 8 && value.length <= 15,
+    "Masukkan nomor WhatsApp yang valid (8–15 digit).",
+  );
+
+const adminPasswordSchema = z
+  .string()
+  .min(12, "Kata sandi minimal 12 karakter.")
+  .refine(
+    (value) => new TextEncoder().encode(value).length <= 72,
+    "Kata sandi terlalu panjang; maksimal 72 byte.",
+  );
+
+export const createAdminSchema = z.object({
+  name: z.string().trim().min(2, "Nama minimal 2 karakter.").max(120),
+  email: z.string().trim().email("Masukkan email yang valid.").max(191).toLowerCase(),
+  password: adminPasswordSchema,
+});
+
+export const updateAdminSchema = z.object({
+  id: z.string().cuid(),
+  name: z.string().trim().min(2, "Nama minimal 2 karakter.").max(120),
+  email: z.string().trim().email("Masukkan email yang valid.").max(191).toLowerCase(),
+  password: z.union([z.literal(""), adminPasswordSchema]),
+  isActive: z.boolean(),
+});
+
 export type CreateOrderInput = z.input<typeof createOrderSchema>;

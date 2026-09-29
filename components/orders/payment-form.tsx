@@ -36,7 +36,10 @@ export function PaymentForm({
       setAmount("");
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Pembayaran gagal dicatat.");
+      console.error("[PaymentForm]", error);
+      toast.error(
+        "Pembayaran belum berhasil dicatat. Silakan muat ulang halaman lalu coba lagi.",
+      );
     } finally {
       setPending(false);
     }

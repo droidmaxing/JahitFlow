@@ -105,6 +105,11 @@ async function main() {
         orderNumber: sample.orderNumber,
         customerId: customer.id,
         createdById: admin.id,
+        customerName: customer.name,
+        customerPhone: customer.phone,
+        customerEmail: customer.email,
+        customerAddress: customer.address,
+        createdByName: admin.name,
         status: sample.status,
         paymentStatus:
           sample.paid >= subtotal ? PaymentStatus.FULLY_PAID : PaymentStatus.DP_PAID,
@@ -128,6 +133,7 @@ async function main() {
         payments: {
           create: {
             recordedById: admin.id,
+            recordedByName: admin.name,
             amount: new Prisma.Decimal(sample.paid),
             method: sample.paymentNote.includes("transfer") ? "TRANSFER" : "CASH",
             note: sample.paymentNote,
@@ -137,6 +143,8 @@ async function main() {
           create: statusHistory.map((entry) => ({
             ...entry,
             changedById: entry.toStatus === ProductionStatus.WAITING ? owner.id : admin.id,
+            changedByName:
+              entry.toStatus === ProductionStatus.WAITING ? owner.name : admin.name,
           })),
         },
       },

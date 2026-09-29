@@ -14,7 +14,7 @@ export default async function ProductionPage() {
       status: true,
       dueDate: true,
       createdAt: true,
-      customer: { select: { name: true } },
+      customerName: true,
       items: { select: { name: true, totalPcs: true } },
     },
   });

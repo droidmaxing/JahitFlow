@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { canTransitionStatus } from "@/lib/order-status";
 import { ActionError } from "@/lib/action-error";
+import { actionErrorMessage } from "@/lib/action-error-message";
 
 export async function updateOrderStatus(
   orderId: string,
@@ -38,16 +39,21 @@ export async function updateOrderStatus(
         data: {
           orderId,
           changedById: user.id,
+          changedByName: user.name,
           fromStatus: order.status,
           toStatus: nextStatus,
         },
       });
     });
   } catch (error) {
-    if (error instanceof ActionError) {
-      return { success: false, error: error.message };
-    }
-    throw error;
+    return {
+      success: false,
+      error: actionErrorMessage(
+        error,
+        "updateOrderStatus",
+        "Perubahan status belum tersimpan. Status sebelumnya tetap aman; silakan coba lagi.",
+      ),
+    };
   }
 
   revalidatePath("/admin/production");

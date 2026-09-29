@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { createOrderSchema, paymentSchema } from "@/lib/schemas";
 import { generateOrderNumber } from "@/lib/order-number";
 import { ActionError } from "@/lib/action-error";
+import { actionErrorMessage } from "@/lib/action-error-message";
 
 export type ActionResult =
   | { success: true; orderId: string; orderNumber: string }
@@ -55,75 +56,84 @@ export async function createOrder(input: unknown): Promise<ActionResult> {
     };
   }
 
-  const customer = await prisma.customer.upsert({
-    where: { phone: data.customerPhone },
-    update: {
-      name: data.customerName,
-      email: data.customerEmail || null,
-      address: data.customerAddress || null,
-    },
-    create: {
-      name: data.customerName,
-      phone: data.customerPhone,
-      email: data.customerEmail || null,
-      address: data.customerAddress || null,
-    },
-  });
-
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const orderNumber = generateOrderNumber();
     try {
-      const order = await prisma.order.create({
-        data: {
-          orderNumber,
-          customerId: customer.id,
-          createdById: user.id,
-          dueDate: data.dueDate
-            ? new Date(`${data.dueDate}T12:00:00+07:00`)
-            : null,
-          notes: data.notes || null,
-          subtotal: new Prisma.Decimal(subtotal),
-          discount: new Prisma.Decimal(data.discount),
-          total: new Prisma.Decimal(total),
-          paymentStatus:
-            data.initialPayment === 0
-              ? PaymentStatus.UNPAID
-              : data.initialPayment >= total
-                ? PaymentStatus.FULLY_PAID
-                : PaymentStatus.DP_PAID,
-          items: {
-            create: items.map((item) => ({
-              name: item.name,
-              description: item.description || null,
-              material: item.material || null,
-              pricePerPiece: new Prisma.Decimal(item.pricePerPiece),
-              totalPcs: item.totalPcs,
-              subtotal: new Prisma.Decimal(item.subtotal),
-              sizes: { create: item.sizes },
-            })),
+      const order = await prisma.$transaction(async (tx) => {
+        const customer = await tx.customer.upsert({
+          where: { phone: data.customerPhone },
+          update: {
+            name: data.customerName,
+            email: data.customerEmail || null,
+            address: data.customerAddress || null,
           },
-          statusLogs: {
-            create: {
-              changedById: user.id,
-              fromStatus: null,
-              toStatus: ProductionStatus.WAITING,
-              note: "Pesanan dibuat.",
+          create: {
+            name: data.customerName,
+            phone: data.customerPhone,
+            email: data.customerEmail || null,
+            address: data.customerAddress || null,
+          },
+        });
+
+        return tx.order.create({
+          data: {
+            orderNumber,
+            customerId: customer.id,
+            createdById: user.id,
+            customerName: data.customerName,
+            customerPhone: data.customerPhone,
+            customerEmail: data.customerEmail || null,
+            customerAddress: data.customerAddress || null,
+            createdByName: user.name,
+            dueDate: data.dueDate
+              ? new Date(`${data.dueDate}T12:00:00+07:00`)
+              : null,
+            notes: data.notes || null,
+            subtotal: new Prisma.Decimal(subtotal),
+            discount: new Prisma.Decimal(data.discount),
+            total: new Prisma.Decimal(total),
+            paymentStatus:
+              data.initialPayment === 0
+                ? PaymentStatus.UNPAID
+                : data.initialPayment >= total
+                  ? PaymentStatus.FULLY_PAID
+                  : PaymentStatus.DP_PAID,
+            items: {
+              create: items.map((item) => ({
+                name: item.name,
+                description: item.description || null,
+                material: item.material || null,
+                pricePerPiece: new Prisma.Decimal(item.pricePerPiece),
+                totalPcs: item.totalPcs,
+                subtotal: new Prisma.Decimal(item.subtotal),
+                sizes: { create: item.sizes },
+              })),
             },
-          },
-          ...(data.initialPayment > 0
-            ? {
-                payments: {
-                  create: {
-                    recordedById: user.id,
-                    amount: new Prisma.Decimal(data.initialPayment),
-                    method: data.paymentMethod,
-                    note: "Pembayaran awal",
+            statusLogs: {
+              create: {
+                changedById: user.id,
+                changedByName: user.name,
+                fromStatus: null,
+                toStatus: ProductionStatus.WAITING,
+                note: "Pesanan dibuat.",
+              },
+            },
+            ...(data.initialPayment > 0
+              ? {
+                  payments: {
+                    create: {
+                      recordedById: user.id,
+                      recordedByName: user.name,
+                      amount: new Prisma.Decimal(data.initialPayment),
+                      method: data.paymentMethod,
+                      note: "Pembayaran awal",
+                    },
                   },
-                },
-              }
-            : {}),
-        },
-        select: { id: true, orderNumber: true },
+                }
+              : {}),
+          },
+          select: { id: true, orderNumber: true },
+        });
       });
 
       revalidatePath("/admin/dashboard");
@@ -142,11 +152,21 @@ export async function createOrder(input: unknown): Promise<ActionResult> {
       ) {
         continue;
       }
-      throw error;
+      return {
+        success: false,
+        error: actionErrorMessage(
+          error,
+          "createOrder",
+          "Pesanan belum berhasil disimpan. Data yang sudah ada tetap aman; silakan coba lagi.",
+        ),
+      };
     }
   }
 
-  throw new Error("Tidak dapat membuat nomor pesanan unik. Silakan coba lagi.");
+  return {
+    success: false,
+    error: "Nomor pesanan belum berhasil dibuat. Tidak ada perubahan yang disimpan; silakan coba lagi.",
+  };
 }
 
 export async function addPayment(
@@ -189,6 +209,7 @@ export async function addPayment(
           data: {
             orderId,
             recordedById: user.id,
+            recordedByName: user.name,
             amount: new Prisma.Decimal(payment.amount),
             method: payment.method,
             note: payment.note || null,
@@ -207,10 +228,14 @@ export async function addPayment(
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
   } catch (error) {
-    if (error instanceof ActionError) {
-      return { success: false, error: error.message };
-    }
-    throw error;
+    return {
+      success: false,
+      error: actionErrorMessage(
+        error,
+        "addPayment",
+        "Pembayaran belum berhasil dicatat. Tidak ada pembayaran ganda yang dibuat; silakan coba lagi.",
+      ),
+    };
   }
 
   revalidatePath(`/admin/orders/${orderId}`);
@@ -225,6 +250,7 @@ export async function completeHandover(
   const user = await requireUser();
   if (
     !orderId ||
+    typeof signatureDataUrl !== "string" ||
     !/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(signatureDataUrl) ||
     signatureDataUrl.length > 750_000
   ) {
@@ -261,6 +287,7 @@ export async function completeHandover(
         data: {
           orderId,
           changedById: user.id,
+          changedByName: user.name,
           fromStatus: ProductionStatus.READY_FOR_PICKUP,
           toStatus: ProductionStatus.COMPLETED,
           note: "Serah terima ditandatangani konsumen.",
@@ -268,10 +295,14 @@ export async function completeHandover(
       });
     });
   } catch (error) {
-    if (error instanceof ActionError) {
-      return { success: false, error: error.message };
-    }
-    throw error;
+    return {
+      success: false,
+      error: actionErrorMessage(
+        error,
+        "completeHandover",
+        "Serah terima belum berhasil disimpan. Data pesanan tetap aman; silakan coba lagi.",
+      ),
+    };
   }
 
   revalidatePath(`/admin/orders/${orderId}`);

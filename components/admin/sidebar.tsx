@@ -8,7 +8,9 @@ import {
   LayoutDashboard,
   LogOut,
   Plus,
+  Settings,
   Scissors,
+  UserRoundCog,
 } from "lucide-react";
 import { signOutAction } from "@/actions/auth";
 import { cn } from "@/lib/utils";
@@ -17,6 +19,8 @@ const navigation = [
   { href: "/admin/dashboard", label: "Ringkasan", icon: LayoutDashboard },
   { href: "/admin/orders", label: "Pesanan", icon: ClipboardList },
   { href: "/admin/production", label: "Produksi", icon: Factory },
+  { href: "/admin/settings", label: "Pengaturan", icon: Settings, ownerOnly: true },
+  { href: "/admin/admins", label: "Kelola admin", icon: UserRoundCog, ownerOnly: true },
 ];
 
 export function Sidebar({
@@ -59,11 +63,15 @@ export function Sidebar({
         <p className="hidden px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 lg:block">
           Menu utama
         </p>
-        {navigation.map(({ href, label, icon: Icon }) => {
+        {navigation
+          .filter(({ ownerOnly }) => !ownerOnly || user.role === "OWNER")
+          .map(({ href, label, icon: Icon }) => {
           const isActive =
             pathname === href ||
-            (href === "/admin/orders" && pathname.startsWith("/admin/orders/")) ||
-            (href === "/admin/production" && pathname.startsWith("/admin/production"));
+            (href === "/admin/orders" &&
+              pathname.startsWith("/admin/orders/")) ||
+            (href === "/admin/production" &&
+              pathname.startsWith("/admin/production"));
           return (
             <Link
               key={href}
@@ -80,7 +88,7 @@ export function Sidebar({
               {label}
             </Link>
           );
-        })}
+          })}
         <Link
           href="/admin/orders/new"
           className="flex h-10 shrink-0 items-center gap-3 rounded-xl px-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-950 lg:hidden"

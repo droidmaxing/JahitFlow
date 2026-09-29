@@ -78,8 +78,9 @@ export function CreateOrderForm() {
       router.push(`/admin/orders/${result.orderId}`);
       router.refresh();
     } catch (error) {
+      console.error("[CreateOrderForm]", error);
       const message =
-        error instanceof Error ? error.message : "Pesanan gagal disimpan.";
+        "Pesanan belum berhasil disimpan. Data yang sudah ada tetap aman; silakan coba lagi.";
       setServerError(message);
       toast.error(message);
     }
@@ -293,7 +294,7 @@ export function CreateOrderForm() {
               />
             </div>
             {serverError ? (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" aria-live="assertive" className="text-sm text-destructive">
                 {serverError}
               </p>
             ) : null}

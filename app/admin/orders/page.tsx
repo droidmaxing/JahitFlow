@@ -42,8 +42,8 @@ export default async function OrdersPage({ searchParams }: PageProps) {
         ? {
             OR: [
               { orderNumber: { contains: search } },
-              { customer: { name: { contains: search } } },
-              { customer: { phone: { contains: search } } },
+              { customerName: { contains: search } },
+              { customerPhone: { contains: search } },
             ],
           }
         : {}),
@@ -51,7 +51,6 @@ export default async function OrdersPage({ searchParams }: PageProps) {
     orderBy: { createdAt: "desc" },
     take: 100,
     include: {
-      customer: { select: { name: true, phone: true } },
       items: { select: { totalPcs: true } },
       payments: { select: { amount: true } },
     },
@@ -149,10 +148,10 @@ export default async function OrdersPage({ searchParams }: PageProps) {
                       </TableCell>
                       <TableCell>
                         <span className="block text-sm font-medium text-slate-900">
-                          {order.customer.name}
+                          {order.customerName}
                         </span>
                         <span className="mt-1 block text-xs text-slate-500">
-                          {order.customer.phone}
+                          {order.customerPhone}
                         </span>
                       </TableCell>
                       <TableCell>

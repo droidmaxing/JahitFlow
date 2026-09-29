@@ -35,3 +35,10 @@ export function formatPhone(phone: string) {
     ? phone
     : `${digits.slice(0, 3)}••••${digits.slice(-3)}`;
 }
+
+export function normalizeWhatsAppNumber(phone: string | undefined) {
+  const digits = phone?.replace(/\D/g, "") ?? "";
+  if (digits.startsWith("0")) return `62${digits.slice(1)}`;
+  if (digits.startsWith("8")) return `62${digits}`;
+  return digits;
+}

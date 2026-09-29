@@ -28,17 +28,15 @@ export const dynamic = "force-dynamic";
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function OrderDetailPage({ params }: PageProps) {
-  const user = await requireUser();
+  await requireUser();
   const { id } = await params;
   const order = await prisma.order.findUnique({
     where: { id },
     include: {
-      customer: true,
       items: { include: { sizes: { orderBy: { size: "asc" } } } },
       payments: { orderBy: { paidAt: "desc" } },
       statusLogs: {
         orderBy: { changedAt: "desc" },
-        include: { changedBy: { select: { name: true } } },
       },
     },
   });
@@ -75,7 +73,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
             <PaymentBadge status={order.paymentStatus} />
           </div>
           <p className="mt-2 text-sm text-slate-600">
-            Dibuat {formatDateTime(order.createdAt)} · oleh {user.name}
+            Dibuat {formatDateTime(order.createdAt)} · oleh {order.createdByName}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -98,14 +96,14 @@ export default async function OrderDetailPage({ params }: PageProps) {
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
-              <Info label="Nama" value={order.customer.name} />
+              <Info label="Nama" value={order.customerName} />
               <Info
                 label="Nomor WhatsApp"
-                value={order.customer.phone}
+                value={order.customerPhone}
                 icon={<Phone aria-hidden="true" className="size-3.5" />}
               />
-              <Info label="Email" value={order.customer.email || "—"} />
-              <Info label="Alamat" value={order.customer.address || "—"} />
+              <Info label="Email" value={order.customerEmail || "—"} />
+              <Info label="Alamat" value={order.customerAddress || "—"} />
             </CardContent>
           </Card>
 
@@ -172,7 +170,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
                       {log.toStatus.replaceAll("_", " ")}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      {log.note || "Status diperbarui"} · {log.changedBy.name} ·{" "}
+                      {log.note || "Status diperbarui"} · {log.changedByName} ·{" "}
                       {formatDateTime(log.changedAt)}
                     </p>
                   </div>
@@ -212,7 +210,8 @@ export default async function OrderDetailPage({ params }: PageProps) {
                         {payment.note || payment.method}
                       </p>
                       <p className="mt-0.5 text-xs text-slate-500">
-                        {formatDateTime(payment.paidAt)}
+                        {formatDateTime(payment.paidAt)} · Dicatat oleh{" "}
+                        {payment.recordedByName}
                       </p>
                     </div>
                     <p className="whitespace-nowrap text-sm font-semibold">
@@ -243,8 +242,22 @@ export default async function OrderDetailPage({ params }: PageProps) {
       </div>
 
       <div className="print-preview">
-        <InvoicePrintView order={order} />
-        <SpkPrintView order={order} />
+        <InvoicePrintView
+          order={{
+            ...order,
+            customer: {
+              name: order.customerName,
+              phone: order.customerPhone,
+              address: order.customerAddress,
+            },
+          }}
+        />
+        <SpkPrintView
+          order={{
+            ...order,
+            customer: { name: order.customerName, phone: order.customerPhone },
+          }}
+        />
       </div>
     </div>
   );

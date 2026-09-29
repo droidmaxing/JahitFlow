@@ -42,7 +42,6 @@ export default async function DashboardPage() {
       orderBy: { createdAt: "desc" },
       take: 6,
       include: {
-        customer: { select: { name: true } },
         items: { select: { totalPcs: true } },
         payments: { select: { amount: true } },
       },
@@ -176,7 +175,7 @@ export default async function DashboardPage() {
                       </span>
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-semibold text-slate-900">
-                          {order.customer.name}
+                          {order.customerName}
                         </span>
                         <span className="mt-1 block font-mono text-xs text-slate-500">
                           {order.orderNumber} · {pcs} pcs
@@ -225,7 +224,7 @@ export default async function DashboardPage() {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-slate-900">
-                      {order.customer.name}
+                      {order.customerName}
                     </span>
                     <span className="mt-1 block text-xs text-slate-500">
                       {order.orderNumber}

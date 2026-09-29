@@ -42,7 +42,10 @@ export function SignaturePadModal({ orderId }: { orderId: string }) {
       setOpen(false);
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Serah terima gagal disimpan.");
+      console.error("[SignaturePadModal]", error);
+      toast.error(
+        "Serah terima belum berhasil disimpan. Data pesanan tetap aman; silakan coba lagi.",
+      );
     } finally {
       setPending(false);
     }

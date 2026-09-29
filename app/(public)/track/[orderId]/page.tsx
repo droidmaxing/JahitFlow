@@ -8,6 +8,7 @@ import {
   formatDate,
   formatDateTime,
   formatPhone,
+  normalizeWhatsAppNumber,
 } from "@/lib/utils";
 import { OrderTimeline } from "@/components/tracking/order-timeline";
 import { PaymentBadge, StatusBadge } from "@/components/status-badge";
@@ -35,10 +36,9 @@ export default async function PublicOrderTrackingPage({
   const order = await prisma.order.findFirst({
     where: {
       orderNumber: orderId.toUpperCase(),
-      customer: { phone: { endsWith: phoneSuffix } },
+      customerPhone: { endsWith: phoneSuffix },
     },
     include: {
-      customer: { select: { name: true, phone: true } },
       items: { include: { sizes: { orderBy: { size: "asc" } } } },
       payments: {
         orderBy: { paidAt: "asc" },
@@ -54,7 +54,13 @@ export default async function PublicOrderTrackingPage({
     (sum, payment) => sum + Number(payment.amount),
     0,
   );
-  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, "");
+  const contactSetting = await prisma.appSetting.findUnique({
+    where: { key: "customerServiceWhatsApp" },
+    select: { value: true },
+  });
+  const whatsappNumber = normalizeWhatsAppNumber(
+    contactSetting?.value ?? process.env.NEXT_PUBLIC_WHATSAPP_NUMBER,
+  );
   const whatsappText = encodeURIComponent(
     `Halo, saya ingin bertanya tentang pesanan ${order.orderNumber}.`,
   );
@@ -93,7 +99,7 @@ export default async function PublicOrderTrackingPage({
               {order.orderNumber}
             </h1>
             <p className="mt-2 text-sm text-slate-600">
-              Pesanan untuk {order.customer.name.split(" ")[0]} · dibuat{" "}
+              Pesanan untuk {order.customerName.split(" ")[0]} · dibuat{" "}
               {formatDate(order.createdAt)}
             </p>
           </div>
@@ -228,7 +234,7 @@ export default async function PublicOrderTrackingPage({
                 <h2 className="font-semibold text-slate-900">Butuh bantuan?</h2>
                 <p className="mt-1.5 text-sm leading-6 text-slate-600">
                   Hubungi admin konveksi untuk pertanyaan seputar pesanan.
-                  Nomor pelanggan: {formatPhone(order.customer.phone)}.
+                  Nomor pelanggan: {formatPhone(order.customerPhone)}.
                 </p>
                 <a
                   href={whatsappHref}

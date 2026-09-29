@@ -37,9 +37,8 @@ export function PrintActions({ orderNumber }: { orderNumber: string }) {
       pdf.addImage(image, "PNG", 10, 10, width, height, undefined, "FAST");
       pdf.save(`nota-${orderNumber}.pdf`);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "PDF gagal dibuat.";
-      toast.error(message);
+      console.error("[PrintActions]", error);
+      toast.error("Nota belum berhasil dibuat sebagai PDF. Silakan coba lagi.");
     } finally {
       setExporting(false);
     }

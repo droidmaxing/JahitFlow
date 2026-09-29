@@ -23,7 +23,7 @@ export type ProductionCard = {
   orderNumber: string;
   status: ProductionStatus;
   dueDate: Date | null;
-  customer: { name: string };
+  customerName: string;
   items: { name: string; totalPcs: number }[];
 };
 
@@ -47,7 +47,10 @@ export function KanbanBoard({ orders }: { orders: ProductionCard[] }) {
       toast.success(`Status dipindahkan ke ${statusLabels[nextStatus]}.`);
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Status gagal diperbarui.");
+      console.error("[KanbanBoard]", error);
+      toast.error(
+        "Perubahan status belum tersimpan. Status sebelumnya tetap aman; silakan coba lagi.",
+      );
     } finally {
       setMovingOrder(null);
     }
@@ -118,7 +121,7 @@ export function KanbanBoard({ orders }: { orders: ProductionCard[] }) {
                                 </button>
                               </div>
                               <p className="mt-2 text-sm font-semibold text-slate-900">
-                                {order.customer.name}
+                                {order.customerName}
                               </p>
                               <div className="mt-3 rounded-lg bg-slate-50 p-2.5">
                                 {order.items.map((item, itemIndex) => (
