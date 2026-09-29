@@ -4,21 +4,23 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ClipboardList,
+  ChartNoAxesCombined,
   Factory,
   LayoutDashboard,
-  LogOut,
+  PackageSearch,
   Plus,
   Settings,
   Scissors,
   UserRoundCog,
 } from "lucide-react";
-import { signOutAction } from "@/actions/auth";
 import { cn } from "@/lib/utils";
 
 const navigation = [
   { href: "/admin/dashboard", label: "Ringkasan", icon: LayoutDashboard },
   { href: "/admin/orders", label: "Pesanan", icon: ClipboardList },
+  { href: "/admin/products", label: "Produk", icon: PackageSearch },
   { href: "/admin/production", label: "Produksi", icon: Factory },
+  { href: "/admin/reports", label: "Laporan", icon: ChartNoAxesCombined, ownerOnly: true },
   { href: "/admin/settings", label: "Pengaturan", icon: Settings, ownerOnly: true },
   { href: "/admin/admins", label: "Kelola admin", icon: UserRoundCog, ownerOnly: true },
 ];
@@ -26,7 +28,7 @@ const navigation = [
 export function Sidebar({
   user,
 }: {
-  user: { name: string; email: string; role: string };
+  user: { role: string };
 }) {
   const pathname = usePathname();
 
@@ -70,8 +72,12 @@ export function Sidebar({
             pathname === href ||
             (href === "/admin/orders" &&
               pathname.startsWith("/admin/orders/")) ||
+            (href === "/admin/products" &&
+              pathname.startsWith("/admin/products")) ||
             (href === "/admin/production" &&
-              pathname.startsWith("/admin/production"));
+              pathname.startsWith("/admin/production")) ||
+            (href === "/admin/reports" &&
+              pathname.startsWith("/admin/reports"));
           return (
             <Link
               key={href}
@@ -98,31 +104,6 @@ export function Sidebar({
         </Link>
       </nav>
 
-      <div className="mt-auto hidden border-t border-slate-100 p-4 lg:block">
-        <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-          <span className="flex size-9 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-primary">
-            {user.name.slice(0, 1).toUpperCase()}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-slate-900">
-              {user.name}
-            </span>
-            <span className="block truncate text-xs text-slate-500">
-              {user.role === "OWNER" ? "Pemilik" : "Admin / Kasir"}
-            </span>
-          </span>
-          <form action={signOutAction}>
-            <button
-              type="submit"
-              aria-label="Keluar"
-              title="Keluar"
-              className="flex size-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <LogOut aria-hidden="true" className="size-4" />
-            </button>
-          </form>
-        </div>
-      </div>
     </aside>
   );
 }

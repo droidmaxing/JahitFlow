@@ -31,24 +31,37 @@ enum ProductionStatus {
 }
 
 model User {
-  id            String       @id @default(cuid())
-  name          String       @db.VarChar(120)
-  email         String       @unique @db.VarChar(191)
-  passwordHash  String       @db.VarChar(255)
-  role          Role         @default(ADMIN)
-  isActive      Boolean      @default(true)
-  sessionVersion Int         @default(0)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  createdOrders Order[]      @relation("OrderCreator")
-  paymentLogs   PaymentLog[]
-  statusLogs    StatusLog[]
+  id             String       @id @default(cuid())
+  name           String       @db.VarChar(120)
+  email          String       @unique @db.VarChar(191)
+  passwordHash   String       @db.VarChar(255)
+  role           Role         @default(ADMIN)
+  isActive       Boolean      @default(true)
+  sessionVersion Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  createdOrders  Order[]      @relation("OrderCreator")
+  paymentLogs    PaymentLog[]
+  statusLogs     StatusLog[]
 }
 
 model AppSetting {
   key       String   @id @db.VarChar(64)
   value     String   @db.VarChar(255)
   updatedAt DateTime @updatedAt
+}
+
+model ProductTemplate {
+  id           String   @id @default(cuid())
+  name         String   @db.VarChar(160)
+  description  String?  @db.Text
+  material     String?  @db.VarChar(160)
+  defaultPrice Decimal? @db.Decimal(12, 2)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isActive, name])
 }
 
 model Customer {

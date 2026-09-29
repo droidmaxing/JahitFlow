@@ -2,10 +2,23 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 import { CreateOrderForm } from "@/components/orders/create-order-form";
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = { title: "Pesanan baru" };
 
-export default function NewOrderPage() {
+export default async function NewOrderPage() {
+  const productTemplates = await prisma.productTemplate.findMany({
+    where: { isActive: true },
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      material: true,
+      defaultPrice: true,
+    },
+  });
+
   return (
     <div className="mx-auto max-w-5xl">
       <Link
@@ -24,7 +37,13 @@ export default function NewOrderPage() {
           Isi data pelanggan, detail produk, ukuran, dan pembayaran awal.
         </p>
       </div>
-      <CreateOrderForm />
+      <CreateOrderForm
+        productTemplates={productTemplates.map((product) => ({
+          ...product,
+          defaultPrice:
+            product.defaultPrice === null ? null : Number(product.defaultPrice),
+        }))}
+      />
     </div>
   );
 }

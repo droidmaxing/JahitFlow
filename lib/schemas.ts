@@ -60,6 +60,22 @@ export const paymentSchema = z.object({
   note: z.string().trim().max(255).optional(),
 });
 
+export const productTemplateSchema = z.object({
+  id: z.string().cuid().optional(),
+  name: z.string().trim().min(2, "Nama produk minimal 2 karakter.").max(160),
+  description: z.string().trim().max(1000).optional(),
+  material: z.string().trim().max(160).optional(),
+  defaultPrice: z.preprocess(
+    (value) => (value === "" || value === undefined ? null : value),
+    z.coerce.number().int().min(1).nullable(),
+  ),
+});
+
+export const productTemplateActiveSchema = z.object({
+  id: z.string().cuid(),
+  isActive: z.boolean(),
+});
+
 export const whatsappNumberSchema = z
   .string()
   .trim()
@@ -90,5 +106,27 @@ export const updateAdminSchema = z.object({
   password: z.union([z.literal(""), adminPasswordSchema]),
   isActive: z.boolean(),
 });
+
+export const updateProfileSchema = z
+  .object({
+    name: z.string().trim().min(2, "Nama minimal 2 karakter.").max(120),
+    email: z.string().trim().email("Masukkan email yang valid.").max(191).toLowerCase(),
+    currentPassword: z.string().min(1, "Kata sandi saat ini wajib diisi."),
+    newPassword: z
+      .string()
+      .refine(
+        (value) => value === "" || value.length >= 12,
+        "Kata sandi baru minimal 12 karakter.",
+      )
+      .refine(
+        (value) => value === "" || new TextEncoder().encode(value).length <= 72,
+        "Kata sandi baru terlalu panjang; maksimal 72 byte.",
+      ),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Konfirmasi kata sandi baru tidak cocok.",
+    path: ["confirmPassword"],
+  });
 
 export type CreateOrderInput = z.input<typeof createOrderSchema>;
