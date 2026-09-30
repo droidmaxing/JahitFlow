@@ -1,104 +1,116 @@
 # JahitFlow
 
-Web management and order tracking for a garment workshop, built with Next.js
-App Router, TypeScript, Tailwind CSS, Prisma, and MySQL.
+JahitFlow adalah aplikasi manajemen pesanan dan produksi untuk usaha konveksi.
+Admin mengelola pesanan sehari-hari, sementara Owner memantau operasional dan
+laporan bisnis. Pelanggan dapat melacak pesanan melalui portal publik.
 
-## Local setup
+## Fitur utama
 
-1. Install Node.js and npm, and start MySQL (the workspace has been set up for
-   a local Laragon MySQL instance).
-2. Copy `.env.example` to `.env` and set the application and shadow database
-   URLs, a random `AUTH_SECRET`, unique seed passwords (at least 12 characters),
-   and the WhatsApp contact number in `NEXT_PUBLIC_WHATSAPP_NUMBER`. Use an
-   Indonesian number such as `083121893686` or the international format
-   `6283121893686`; both are normalized for the WhatsApp link. MySQL must have
-   a `konveksi_db` database
-   and a separate `konveksi_shadow` database; the configured user needs full
-   privileges on both for local development migrations. Keep `.env` private
-   and out of source control.
-3. Install dependencies and initialize the database:
+- **Pesanan dan pelanggan:** catat data pelanggan, beberapa produk, ukuran,
+  jumlah, harga, diskon, tenggat, dan catatan pesanan.
+- **Katalog produk fleksibel:** gunakan template sebagai titik awal atau isi
+  produk custom; detail pesanan tetap dapat disesuaikan.
+- **Produksi:** pantau dan pindahkan pesanan antar tahap pada papan Kanban.
+- **Pembayaran:** catat beberapa pembayaran, status pelunasan, dan sisa tagihan.
+- **Nota dan dokumen kerja:** cetak invoice dan surat perintah kerja.
+- **Pelacakan pelanggan:** pelanggan dapat melihat progres, riwayat pembayaran,
+  dan estimasi selesai menggunakan nomor pesanan serta empat digit terakhir
+  nomor WhatsApp.
+- **Fitur Owner:** kelola akun Admin/Kasir, atur nomor WhatsApp layanan, dan
+  pantau laporan bisnis yang dapat diunduh sebagai Excel.
+- **Riwayat terjaga:** pesanan menyimpan snapshot data saat dicatat. Akun dan
+  data terkait dinonaktifkan atau dipertahankan, bukan dihapus dari alur biasa.
+
+## Alur penggunaan
+
+1. Owner atau Admin/Kasir masuk ke area admin.
+2. Buat pesanan, pilih template produk atau masukkan produk custom, lalu catat
+   ukuran, harga, tenggat, dan pembayaran awal jika ada.
+3. Pantau dan perbarui tahap produksi pada papan Kanban.
+4. Catat pembayaran berikutnya sampai lunas; cetak invoice atau dokumen kerja
+   bila diperlukan.
+5. Pelanggan melihat progres di halaman **Lacak pesanan** menggunakan nomor
+   pesanan dan empat digit terakhir nomor WhatsApp.
+6. Owner memantau laporan, mengunduh Excel, mengatur nomor WhatsApp layanan,
+   dan mengelola akun Admin/Kasir.
+
+## Menjalankan di komputer lokal
+
+### Prasyarat
+
+- Node.js 20.9 atau lebih baru dan npm.
+- MySQL 8.x (Laragon dapat digunakan di Windows).
+- Database MySQL untuk aplikasi dan satu database terpisah untuk shadow
+  migration; akun MySQL perlu izin akses pada keduanya.
+
+### Instalasi
+
+1. Clone repository dan masuk ke folder proyek:
 
    ```powershell
-   npm install
-   npm run db:migrate -- --name init
-   npm run db:seed
+   git clone https://github.com/droidmaxing/JahitFlow.git
+   cd JahitFlow
    ```
 
-4. Run the app:
+2. Buat database MySQL kosong, misalnya `konveksi_db` dan
+   `konveksi_shadow`.
+3. Salin konfigurasi contoh dan isi nilai lokal:
+
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+   Atur `DATABASE_URL`, `SHADOW_DATABASE_URL`, `AUTH_SECRET`, kata sandi seed,
+   dan `NEXT_PUBLIC_WHATSAPP_NUMBER`. Gunakan kata sandi seed unik minimal 12
+   karakter dan `AUTH_SECRET` acak yang kuat. Format nomor WhatsApp sebaiknya
+   internasional tanpa tanda `+`, misalnya `6283121893686`. Jangan bagikan atau
+   commit file `.env`.
+4. Instal dependensi, terapkan migrasi yang sudah tersedia, dan siapkan Prisma:
+
+   ```powershell
+   npm ci
+   npx prisma migrate deploy
+   npm run db:generate
+   ```
+
+5. Jalankan server pengembangan:
 
    ```powershell
    npm run dev
    ```
 
-Open `http://localhost:3000`; admin sign-in is at `/login`. Seeded users are
-`owner@konveksi.local` and `kasir@konveksi.local`. Their passwords are the
-values assigned to `SEED_OWNER_PASSWORD` and `SEED_ADMIN_PASSWORD` in `.env`.
+   Buka `http://localhost:3000`. Halaman masuk admin tersedia di
+   `http://localhost:3000/login`.
 
-## Useful commands
+### Akun dan data demo (opsional)
 
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Start the development server |
-| `npm run lint` | Run ESLint |
-| `npm run typecheck` | Check TypeScript types |
-| `npm run build` | Create a production build |
-| `npm run db:generate` | Generate the Prisma Client |
-| `npm run db:migrate` | Create/apply a development migration |
-| `npm run db:seed` | Create demo users and sample orders |
-| `npm run db:seed:products` | Add the built-in product templates without changing accounts or orders |
-| `npm run db:studio` | Open Prisma Studio |
-
-## Data retention
-
-Orders keep snapshots of the customer details and staff names that were recorded
-when the order or its history entry was created. Updating a customer profile or
-staff name therefore does not rewrite older order records. Foreign keys prevent
-deleting an order, item, customer, or user while another record refers to it;
-orders should be cancelled or completed rather than hard-deleted. The history
-migration backfills snapshots from existing related records and changes only
-columns and foreign-key constraints; it does not delete application rows.
-
-When applying migrations to an existing database, use Prisma Migrate rather
-than `prisma db push`:
+Untuk mengisi data demo di database lokal, jalankan:
 
 ```powershell
-npx prisma migrate deploy
+npm run db:seed
+npm run db:seed:products
 ```
 
-Expected form and database errors are returned as user-friendly messages.
-Unexpected server errors are recorded in the server log and shown in the UI
-without exposing database details to customers.
+Seed utama menyiapkan akun `owner@konveksi.local` dan `kasir@konveksi.local`;
+kata sandinya mengikuti `SEED_OWNER_PASSWORD` dan `SEED_ADMIN_PASSWORD` di
+`.env`. Seed juga dapat membuat contoh pelanggan dan pesanan. Seed produk
+menambahkan template contoh yang belum ada. **Jalankan seed hanya pada database
+lokal/demo**: seed utama memperbarui data akun demo dan dapat menambahkan data
+contoh.
 
-## Owner admin management
+## Perintah berguna
 
-The Owner can create and update Admin/Kasir accounts at `/admin/admins`.
-Admin role assignment is enforced by the server action; this screen cannot
-create or promote an Owner account. Existing admins can be renamed, have their
-email or password changed, and be deactivated/reactivated. Accounts are not
-deleted, and the last active Admin cannot be deactivated. Resetting a password
-increments the account session version and invalidates that admin's existing
-sessions.
+| Perintah | Kegunaan |
+| --- | --- |
+| `npm run dev` | Menjalankan server pengembangan |
+| `npm run lint` | Memeriksa aturan ESLint |
+| `npm run typecheck` | Memeriksa tipe TypeScript |
+| `npm run build` | Membuat build produksi |
+| `npm run start` | Menjalankan build produksi |
+| `npm run db:generate` | Membuat Prisma Client |
+| `npm run db:migrate -- --name <nama>` | Membuat dan menerapkan migrasi saat mengubah schema |
+| `npm run db:seed` | Menyiapkan akun dan data demo |
+| `npm run db:seed:products` | Menambahkan template produk contoh |
+| `npm run db:studio` | Membuka Prisma Studio |
 
-Any signed-in user can edit their own name and email or change their password
-from the profile dropdown at the top right. Saving profile changes requires the
-current password; a password change rotates the current session and revokes
-previous sessions for that user.
-
-The Owner-only Laporan page is available from the admin sidebar. It summarizes
-payments received and new order value for a selected date range, current
-receivables and overdue balances, active production stages, leading customers,
-payment methods, and recent payments. The profile dropdown also provides the
-Keluar action.
-Owner can download the selected reporting period as an `.xlsx` workbook. The
-workbook has Ringkasan, Pesanan, Pembayaran, Piutang, and Pelanggan sheets;
-download access is restricted to Owner accounts.
-
-The Produk page maintains reusable product templates with optional default
-material, specifications, and price. Templates are optional when creating
-orders: staff can choose one and adjust its copied details for that order, or
-enter a custom product from scratch. Templates can be edited or archived;
-changes do not rewrite previously recorded order items, and no stock is tracked.
-Run `npm run db:seed:products` to add the built-in example catalog. This
-idempotent seed inserts missing templates only and does not reset user
-credentials or alter existing business records. Owner reports can be downloaded
-as an Excel workbook with summary, order, payment, and receivable worksheets.
+Gunakan migrasi Prisma untuk perubahan database; hindari `prisma db push`.
