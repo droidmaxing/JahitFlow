@@ -3,6 +3,7 @@
 import { signIn } from "next-auth/react";
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { InlineNotice } from "@/components/inline-notice";
 import {
   ArrowRight,
   Eye,
@@ -24,18 +25,22 @@ export function LoginForm() {
     setLoading(true);
 
     const formData = new FormData(event.currentTarget);
-    const result = await signIn("credentials", {
-      email: formData.get("email"),
-      password: formData.get("password"),
-      redirect: false,
-    });
-
-    if (result?.error) {
-      setError("Email atau kata sandi tidak sesuai.");
+    try {
+      const result = await signIn("credentials", {
+        email: formData.get("email"),
+        password: formData.get("password"),
+        redirect: false,
+      });
+      if (result?.error) {
+        setError("Email atau kata sandi tidak sesuai.");
+        setLoading(false);
+        return;
+      }
+      router.replace("/");
+    } catch {
+      setError("Tidak dapat menghubungi layanan masuk. Periksa koneksi lalu coba lagi.");
       setLoading(false);
-      return;
     }
-    router.replace("/");
   }
 
   return (
@@ -51,6 +56,7 @@ export function LoginForm() {
             type="email"
             autoComplete="email"
             required
+            maxLength={254}
             placeholder="nama@perusahaan.com"
             className="h-12 w-full rounded-xl border border-[#e1e7e4] bg-white pl-11 pr-4 text-sm outline-none transition placeholder:text-[#aab4b0] focus:border-[#7db8a7] focus:ring-4 focus:ring-[#176b5b]/[.08]"
           />
@@ -67,6 +73,7 @@ export function LoginForm() {
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             required
+            maxLength={128}
             placeholder="Masukkan kata sandi"
             className="h-12 w-full rounded-xl border border-[#e1e7e4] bg-white pl-11 pr-12 text-sm outline-none transition placeholder:text-[#aab4b0] focus:border-[#7db8a7] focus:ring-4 focus:ring-[#176b5b]/[.08]"
           />
@@ -86,11 +93,7 @@ export function LoginForm() {
           </button>
         </span>
       </label>
-      {error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <InlineNotice message={error} />}
       <button
         type="submit"
         disabled={loading}

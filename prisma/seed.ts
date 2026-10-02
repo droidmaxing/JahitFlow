@@ -72,6 +72,24 @@ async function main() {
     business.branches[0] ??
     (await prisma.branch.findFirstOrThrow({ where: { businessId: business.id } }));
 
+  for (let weekday = 0; weekday < 7; weekday += 1) {
+    await prisma.operatingHours.upsert({
+      where: { branchId_weekday: { branchId: branch.id, weekday } },
+      update: {
+        opensAt: "09:00",
+        closesAt: "17:00",
+        closed: weekday === 0,
+      },
+      create: {
+        branchId: branch.id,
+        weekday,
+        opensAt: "09:00",
+        closesAt: "17:00",
+        closed: weekday === 0,
+      },
+    });
+  }
+
   const membership = await prisma.businessMembership.upsert({
     where: { userId_businessId: { userId: user.id, businessId: business.id } },
     update: { role: MembershipRole.ADMIN },
@@ -186,6 +204,19 @@ async function main() {
       type: "QR_QUEUE",
     },
   });
+  await prisma.accessToken.deleteMany({
+    where: { businessId: business.id, type: "BOOKING", bookingId: null },
+  });
+  const bookingToken = randomBytes(32).toString("base64url");
+  await prisma.accessToken.create({
+    data: {
+      businessId: business.id,
+      branchId: branch.id,
+      tokenHash: createHash("sha256").update(bookingToken).digest("hex"),
+      type: "BOOKING",
+      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+    },
+  });
 
   const today = new Date(
     new Intl.DateTimeFormat("en-CA", {
@@ -219,7 +250,10 @@ async function main() {
       { service: services[2], status: QueueStatus.WAITING },
       { service: services[1], status: QueueStatus.WAITING },
     ];
+    const sequenceByService = new Map<string, number>();
     for (const [index, record] of records.entries()) {
+      const sequenceNumber = (sequenceByService.get(record.service.id) ?? 0) + 1;
+      sequenceByService.set(record.service.id, sequenceNumber);
       const counter = record.counterCode
         ? await prisma.counter.findUnique({
             where: { branchId_code: { branchId: branch.id, code: record.counterCode } },
@@ -234,8 +268,8 @@ async function main() {
           customerId: customers[index].id,
           counterId: counter?.id,
           serviceDate: today,
-          sequenceNumber: index + 1,
-          ticketNumber: `${record.service.code}-${String(index + 1).padStart(3, "0")}`,
+          sequenceNumber,
+          ticketNumber: `${record.service.code}-${String(sequenceNumber).padStart(3, "0")}`,
           status: record.status,
           issuedAt,
           calledAt: counter ? new Date(issuedAt.getTime() + 3 * 60_000) : null,
@@ -260,11 +294,43 @@ async function main() {
     }
   }
 
+  for (const service of services) {
+    const latestQueue = await prisma.queue.findFirst({
+      where: { branchId: branch.id, serviceId: service.id, serviceDate: today },
+      orderBy: { sequenceNumber: "desc" },
+      select: { sequenceNumber: true },
+    });
+    const sequenceKey = {
+      branchId_serviceId_serviceDate: {
+        branchId: branch.id,
+        serviceId: service.id,
+        serviceDate: today,
+      },
+    };
+    const currentSequence = await prisma.queueSequence.findUnique({
+      where: sequenceKey,
+      select: { lastNumber: true },
+    });
+    if (!currentSequence || currentSequence.lastNumber < (latestQueue?.sequenceNumber ?? 0)) {
+      await prisma.queueSequence.upsert({
+        where: sequenceKey,
+        create: {
+          branchId: branch.id,
+          serviceId: service.id,
+          serviceDate: today,
+          lastNumber: latestQueue?.sequenceNumber ?? 0,
+        },
+        update: { lastNumber: latestQueue?.sequenceNumber ?? 0 },
+      });
+    }
+  }
+
   console.info(`Demo user: ${email} / Antrian123!`);
   console.info(`Demo Super Admin: ${superAdminEmail} / SuperAdmin123!`);
   console.info(`Demo Owner (read-only): ${ownerEmail} / Owner12345!`);
   console.info(`Business: ${business.slug}`);
   console.info(`Demo QR: http://localhost:3000/q/${qrToken}`);
+  console.info(`Demo booking: http://localhost:3000/book/${bookingToken}`);
 }
 
 main()

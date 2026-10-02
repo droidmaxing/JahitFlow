@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { errorResponse, AppError } from "@/modules/shared/errors";
+import { errorResponse, AppError, readJsonRequest } from "@/modules/shared/errors";
+import { validationAppError } from "@/modules/shared/validation-error";
 import { requireBusinessContext } from "@/modules/tenancy/context";
 import { callNext, listQueues } from "@/modules/queue/application/queue-service";
 
@@ -29,9 +30,13 @@ export async function GET(request: Request, { params }: RouteContext) {
 export async function POST(request: Request, { params }: RouteContext) {
   try {
     const { businessSlug } = await params;
-    const parsed = callNextSchema.safeParse(await request.json());
+    const parsed = callNextSchema.safeParse(await readJsonRequest(request));
     if (!parsed.success) {
-      throw new AppError("Data pemanggilan antrean tidak valid.", 400, "INVALID_INPUT");
+      throw validationAppError(parsed.error, "Periksa kembali data pemanggilan antrean.", {
+        branchId: "Cabang",
+        counterId: "Loket",
+        serviceId: "Layanan",
+      });
     }
     const context = await requireBusinessContext(businessSlug, parsed.data.branchId);
     const queue = await callNext(context, parsed.data);

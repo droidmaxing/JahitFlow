@@ -1,7 +1,8 @@
 import { FeatureKey } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { AppError, errorResponse } from "@/modules/shared/errors";
+import { AppError, errorResponse, readJsonRequest } from "@/modules/shared/errors";
+import { validationAppError } from "@/modules/shared/validation-error";
 import { requireBusinessContext, requireRole } from "@/modules/tenancy/context";
 
 type RouteContext = { params: Promise<{ businessSlug: string }> };
@@ -35,9 +36,11 @@ const updateSchema = z.object({
 export async function PATCH(request: Request, { params }: RouteContext) {
   try {
     const { businessSlug } = await params;
-    const parsed = updateSchema.safeParse(await request.json());
+    const parsed = updateSchema.safeParse(await readJsonRequest(request));
     if (!parsed.success) {
-      throw new AppError("Perubahan fitur tidak valid.", 400, "INVALID_INPUT");
+      throw validationAppError(parsed.error, "Periksa kembali perubahan fitur.", {
+        features: "Daftar fitur",
+      });
     }
     const context = await requireBusinessContext(businessSlug);
     requireRole(context, ["SUPER_ADMIN"]);

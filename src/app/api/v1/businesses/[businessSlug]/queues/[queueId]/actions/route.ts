@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { errorResponse, AppError } from "@/modules/shared/errors";
+import { errorResponse, readJsonRequest } from "@/modules/shared/errors";
+import { validationAppError } from "@/modules/shared/validation-error";
 import { requireBusinessContext } from "@/modules/tenancy/context";
 import { transitionQueue } from "@/modules/queue/application/queue-service";
 
@@ -22,9 +23,11 @@ type RouteContext = {
 export async function POST(request: Request, { params }: RouteContext) {
   try {
     const { businessSlug, queueId } = await params;
-    const parsed = actionSchema.safeParse(await request.json());
+    const parsed = actionSchema.safeParse(await readJsonRequest(request));
     if (!parsed.success) {
-      throw new AppError("Aksi antrean tidak valid.", 400, "INVALID_INPUT");
+      throw validationAppError(parsed.error, "Pilih aksi antrean yang tersedia.", {
+        action: "Aksi antrean",
+      });
     }
 
     const context = await requireBusinessContext(businessSlug);

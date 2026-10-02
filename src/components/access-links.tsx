@@ -1,7 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, ExternalLink, LoaderCircle, QrCode, Tv2 } from "lucide-react";
+import {
+  CalendarDays,
+  Check,
+  Copy,
+  ExternalLink,
+  LoaderCircle,
+  QrCode,
+  Tv2,
+} from "lucide-react";
+import { InlineNotice } from "@/components/inline-notice";
 
 type LinkResource = { label: string; url: string };
 
@@ -10,31 +19,41 @@ export function AccessLinks({
   branchId,
   qrEnabled,
   displayEnabled,
+  bookingEnabled,
 }: {
   businessSlug: string;
   branchId: string;
   qrEnabled: boolean;
   displayEnabled: boolean;
+  bookingEnabled: boolean;
 }) {
-  const [busy, setBusy] = useState<"qr" | "display" | null>(null);
+  const [busy, setBusy] = useState<"qr" | "display" | "booking" | null>(null);
   const [resource, setResource] = useState<LinkResource | null>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
 
-  async function create(kind: "qr" | "display") {
+  async function create(kind: "qr" | "display" | "booking") {
     setBusy(kind);
     setError("");
     setResource(null);
     try {
       const response = await fetch(
-        `/api/v1/businesses/${businessSlug}/${kind === "qr" ? "qr-tokens" : "displays"}`,
+        `/api/v1/businesses/${businessSlug}/${
+          kind === "qr"
+            ? "qr-tokens"
+            : kind === "display"
+              ? "displays"
+              : "booking-tokens"
+        }`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(
             kind === "qr"
               ? { branchId }
-              : { branchId, name: `Display ${new Date().toLocaleDateString("id-ID")}` },
+              : kind === "display"
+                ? { branchId, name: `Display ${new Date().toLocaleDateString("id-ID")}` }
+                : { branchId },
           ),
         },
       );
@@ -43,10 +62,19 @@ export function AccessLinks({
         throw new Error(result.error?.message ?? "Tautan gagal dibuat.");
       }
       const path =
-        kind === "qr" ? result.data.url : `/display/${result.data.token}`;
+        kind === "qr"
+          ? result.data.url
+          : kind === "display"
+            ? `/display/${result.data.token}`
+            : result.data.url;
       const origin = window.location.origin;
       setResource({
-        label: kind === "qr" ? "QR antrean" : "TV Display",
+        label:
+          kind === "qr"
+            ? "QR antrean"
+            : kind === "display"
+              ? "TV Display"
+              : "Booking online",
         url: new URL(path, origin).toString(),
       });
     } catch (createError) {
@@ -62,9 +90,13 @@ export function AccessLinks({
 
   async function copyLink() {
     if (!resource) return;
-    await navigator.clipboard.writeText(resource.url);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
+    try {
+      await navigator.clipboard.writeText(resource.url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setError("Tautan tidak dapat disalin oleh browser ini. Salin tautan secara manual.");
+    }
   }
 
   return (
@@ -75,7 +107,7 @@ export function AccessLinks({
           Tautan bertoken aman dibuat hanya saat diminta.
         </p>
       </div>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <button
           type="button"
           onClick={() => void create("qr")}
@@ -89,6 +121,22 @@ export function AccessLinks({
             <span className="block text-xs font-semibold text-[#40504a]">Buat QR antrean</span>
             <span className="mt-1 block text-[10px] text-[#929e99]">
               {qrEnabled ? "Buat tautan baru untuk dicetak." : "Fitur antrean QR sedang nonaktif."}
+            </span>
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => void create("booking")}
+          disabled={!bookingEnabled || busy !== null}
+          className="flex items-center gap-3 rounded-xl border border-[#e9edeb] p-4 text-left transition hover:border-[#b8d5c7] hover:bg-[#fbfdfb] disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          <span className="flex size-10 items-center justify-center rounded-xl bg-[#fff5e7] text-[#b17c34]">
+            {busy === "booking" ? <LoaderCircle className="size-5 animate-spin" /> : <CalendarDays className="size-5" />}
+          </span>
+          <span>
+            <span className="block text-xs font-semibold text-[#40504a]">Buat link booking</span>
+            <span className="mt-1 block text-[10px] text-[#929e99]">
+              {bookingEnabled ? "Bagikan jadwal reservasi online." : "Fitur booking sedang nonaktif."}
             </span>
           </span>
         </button>
@@ -110,9 +158,7 @@ export function AccessLinks({
         </button>
       </div>
       {error && (
-        <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
-          {error}
-        </p>
+        <InlineNotice message={error} className="mt-4" />
       )}
       {resource && (
         <div className="mt-4 rounded-xl border border-[#dcebe2] bg-[#f5faf7] p-4">

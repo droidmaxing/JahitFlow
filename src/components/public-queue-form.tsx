@@ -3,6 +3,8 @@
 import { LoaderCircle, MoveRight, TicketCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { SearchableSelect } from "@/components/searchable-select";
+import { FieldError, InlineNotice } from "@/components/inline-notice";
 
 type ServiceOption = {
   id: string;
@@ -24,12 +26,23 @@ export function PublicQueueForm({
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const selectedService = services.find((service) => service.id === serviceId);
+
+  function clearFieldError(field: string) {
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setFieldErrors({});
     try {
       const response = await fetch(`/api/v1/public/qr/${token}`, {
         method: "POST",
@@ -42,6 +55,7 @@ export function PublicQueueForm({
       });
       const result = await response.json();
       if (!response.ok) {
+        setFieldErrors(result.error?.fields ?? {});
         throw new Error(result.error?.message ?? "Nomor antrean gagal dibuat.");
       }
       router.push(result.data.statusUrl);
@@ -75,18 +89,23 @@ export function PublicQueueForm({
         <span className="mb-2 block text-xs font-semibold text-[#45544f]">
           Pilih layanan
         </span>
-        <select
+        <SearchableSelect
           value={serviceId}
-          onChange={(event) => setServiceId(event.target.value)}
-          required
+          onChange={(nextServiceId) => {
+            setServiceId(nextServiceId);
+            clearFieldError("serviceId");
+          }}
+          ariaLabel="Pilih layanan"
+          invalid={Boolean(fieldErrors.serviceId)}
+          describedBy={fieldErrors.serviceId ? "queue-service-error" : undefined}
+          options={services.map((service) => ({
+            value: service.id,
+            label: service.name,
+            description: `${service.code} · ±${service.averageMinutes} menit`,
+          }))}
           className="h-12 w-full rounded-xl border border-[#e1e8e4] bg-white px-3.5 text-sm text-[#344440] outline-none focus:border-[#79b39e] focus:ring-4 focus:ring-[#176b5b]/[.08]"
-        >
-          {services.map((service) => (
-            <option key={service.id} value={service.id}>
-              {service.name} · ±{service.averageMinutes} menit
-            </option>
-          ))}
-        </select>
+        />
+        <FieldError id="queue-service-error" message={fieldErrors.serviceId} />
       </label>
       <label className="block">
         <span className="mb-2 block text-xs font-semibold text-[#45544f]">
@@ -94,14 +113,20 @@ export function PublicQueueForm({
         </span>
         <input
           value={name}
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event) => {
+            setName(event.target.value);
+            clearFieldError("customerName");
+          }}
           required
           minLength={2}
           maxLength={120}
+          aria-invalid={Boolean(fieldErrors.customerName)}
+          aria-describedby={fieldErrors.customerName ? "queue-name-error" : undefined}
           autoComplete="name"
           placeholder="Masukkan nama lengkap"
-          className="h-12 w-full rounded-xl border border-[#e1e8e4] bg-white px-3.5 text-sm outline-none placeholder:text-[#a3ada9] focus:border-[#79b39e] focus:ring-4 focus:ring-[#176b5b]/[.08]"
+          className={`h-12 w-full rounded-xl border bg-white px-3.5 text-sm outline-none placeholder:text-[#a3ada9] focus:border-[#79b39e] focus:ring-4 focus:ring-[#176b5b]/[.08] ${fieldErrors.customerName ? "border-[#d98a80]" : "border-[#e1e8e4]"}`}
         />
+        <FieldError id="queue-name-error" message={fieldErrors.customerName} />
       </label>
       <label className="block">
         <span className="mb-2 flex items-center justify-between text-xs font-semibold text-[#45544f]">
@@ -109,13 +134,19 @@ export function PublicQueueForm({
         </span>
         <input
           value={phone}
-          onChange={(event) => setPhone(event.target.value)}
+          onChange={(event) => {
+            setPhone(event.target.value);
+            clearFieldError("customerPhone");
+          }}
           type="tel"
           maxLength={24}
+          aria-invalid={Boolean(fieldErrors.customerPhone)}
+          aria-describedby={fieldErrors.customerPhone ? "queue-phone-error" : undefined}
           autoComplete="tel"
           placeholder="+62 812 3456 7890"
-          className="h-12 w-full rounded-xl border border-[#e1e8e4] bg-white px-3.5 text-sm outline-none placeholder:text-[#a3ada9] focus:border-[#79b39e] focus:ring-4 focus:ring-[#176b5b]/[.08]"
+          className={`h-12 w-full rounded-xl border bg-white px-3.5 text-sm outline-none placeholder:text-[#a3ada9] focus:border-[#79b39e] focus:ring-4 focus:ring-[#176b5b]/[.08] ${fieldErrors.customerPhone ? "border-[#d98a80]" : "border-[#e1e8e4]"}`}
         />
+        <FieldError id="queue-phone-error" message={fieldErrors.customerPhone} />
       </label>
       {selectedService && (
         <div className="flex items-center justify-between rounded-xl bg-[#f1f7f4] px-4 py-3">
@@ -126,9 +157,7 @@ export function PublicQueueForm({
         </div>
       )}
       {error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
-          {error}
-        </p>
+        <InlineNotice message={error} />
       )}
       <button
         type="submit"

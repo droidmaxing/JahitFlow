@@ -8,30 +8,30 @@ import { hashAccessToken } from "@/modules/queue/application/public-queue";
 import { requireBusinessContext, requireRole } from "@/modules/tenancy/context";
 
 type RouteContext = { params: Promise<{ businessSlug: string }> };
-
-const createSchema = z.object({ branchId: z.string().min(1) });
+const schema = z.object({ branchId: z.string().min(1) });
 
 export async function POST(request: Request, { params }: RouteContext) {
   try {
     const { businessSlug } = await params;
-    const parsed = createSchema.safeParse(await readJsonRequest(request));
+    const parsed = schema.safeParse(await readJsonRequest(request));
     if (!parsed.success) {
-      throw validationAppError(parsed.error, "Pilih cabang untuk membuat QR.", {
+      throw validationAppError(parsed.error, "Pilih cabang untuk membuat tautan booking.", {
         branchId: "Cabang",
       });
     }
     const context = await requireBusinessContext(businessSlug, parsed.data.branchId);
     requireRole(context, ["SUPER_ADMIN"]);
-    await requireFeature(context.businessId, "QR_QUEUE");
+    await requireFeature(context.businessId, "BOOKING");
 
     const token = randomBytes(32).toString("base64url");
-    const created = await prisma.$transaction(async (tx) => {
-      const access = await tx.accessToken.create({
+    const access = await prisma.$transaction(async (tx) => {
+      const created = await tx.accessToken.create({
         data: {
           businessId: context.businessId,
           branchId: parsed.data.branchId,
           tokenHash: hashAccessToken(token),
-          type: "QR_QUEUE",
+          type: "BOOKING",
+          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         },
         select: { id: true, branchId: true, createdAt: true },
       });
@@ -40,15 +40,15 @@ export async function POST(request: Request, { params }: RouteContext) {
           businessId: context.businessId,
           actorUserId: context.userId,
           branchId: parsed.data.branchId,
-          action: "QR_TOKEN_CREATED",
+          action: "BOOKING_TOKEN_CREATED",
           targetType: "AccessToken",
-          targetId: access.id,
+          targetId: created.id,
         },
       });
-      return access;
+      return created;
     });
     return Response.json(
-      { data: { ...created, url: `/q/${token}` } },
+      { data: { ...access, url: `/book/${token}` } },
       { status: 201, headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

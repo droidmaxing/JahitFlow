@@ -25,12 +25,17 @@ import {
   Volume2,
   type LucideIcon,
 } from "lucide-react";
+import { InlineNotice } from "@/components/inline-notice";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { FeatureKey, MembershipRole, QueueStatus } from "@prisma/client";
 import { FeatureSettings } from "@/components/feature-settings";
 import { AccessLinks } from "@/components/access-links";
+import {
+  BookingManagement,
+  type BookingRow,
+} from "@/components/booking-management";
 
 type QueueRow = {
   id: string;
@@ -65,6 +70,7 @@ type DashboardProps = {
   role: MembershipRole;
   userName: string;
   enabledFeatures: FeatureKey[];
+  bookings: BookingRow[];
   metrics: {
     total: number;
     waiting: number;
@@ -109,12 +115,14 @@ export function Dashboard({
   role,
   userName,
   enabledFeatures,
+  bookings,
   metrics,
   queues,
 }: DashboardProps) {
   const router = useRouter();
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
+  const [noticeVariant, setNoticeVariant] = useState<"error" | "success">("success");
   const canOperate = role === "ADMIN" || role === "SUPER_ADMIN";
   const canConfigure = role === "SUPER_ADMIN";
   const isOwner = role === "OWNER";
@@ -134,8 +142,10 @@ export function Dashboard({
       const result = await response.json();
       if (!response.ok) throw new Error(result.error?.message ?? "Gagal memanggil antrean.");
       setNotice(`${result.data.ticketNumber} dipanggil ke loket.`);
+      setNoticeVariant("success");
       router.refresh();
     } catch (error) {
+      setNoticeVariant("error");
       setNotice(error instanceof Error ? error.message : "Terjadi kesalahan.");
     } finally {
       setBusyAction(null);
@@ -157,8 +167,10 @@ export function Dashboard({
       const result = await response.json();
       if (!response.ok) throw new Error(result.error?.message ?? "Aksi antrean gagal.");
       setNotice(`Status antrean berhasil diperbarui.`);
+      setNoticeVariant("success");
       router.refresh();
     } catch (error) {
+      setNoticeVariant("error");
       setNotice(error instanceof Error ? error.message : "Terjadi kesalahan.");
     } finally {
       setBusyAction(null);
@@ -196,6 +208,9 @@ export function Dashboard({
           <NavLink href="#overview" label="Ringkasan" icon={LayoutDashboard} active />
           <NavLink href="#queue" label="Antrean" icon={Users2} badge={metrics.waiting} />
           <NavLink href="#counters" label="Loket" icon={Radio} />
+          {enabledFeatures.includes("BOOKING") && (
+            <NavLink href="#bookings" label="Booking" icon={CalendarDays} />
+          )}
           {analyticsEnabled && (
             <NavLink href="#services" label="Layanan" icon={Activity} />
           )}
@@ -285,6 +300,20 @@ export function Dashboard({
           </div>
         </header>
 
+        <nav
+          aria-label="Navigasi dashboard"
+          className="dashboard-mobile-nav sticky top-[72px] z-[9] flex gap-1 overflow-x-auto border-b border-[#e9edeb] bg-white px-3 py-2 xl:hidden"
+        >
+          <MobileNavLink href="#overview" label="Ringkasan" />
+          <MobileNavLink href="#queue" label="Antrean" />
+          <MobileNavLink href="#counters" label="Loket" />
+          {enabledFeatures.includes("BOOKING") && (
+            <MobileNavLink href="#bookings" label="Booking" />
+          )}
+          {analyticsEnabled && <MobileNavLink href="#services" label="Layanan" />}
+          {canConfigure && <MobileNavLink href="#settings" label="Pengaturan" />}
+        </nav>
+
         <div className="mx-auto max-w-[1440px] px-5 py-7 md:px-9 md:py-9">
           <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
@@ -328,12 +357,14 @@ export function Dashboard({
           </div>
 
           {notice && (
-            <div
-              role="status"
-              className="mb-5 flex items-center justify-between rounded-xl border border-[#cfe5da] bg-[#eff8f3] px-4 py-3 text-sm text-[#176b5b]"
-            >
-              <span>{notice}</span>
-              <button onClick={() => setNotice("")} aria-label="Tutup pemberitahuan">
+            <div className="mb-5 flex items-center gap-3">
+              <InlineNotice message={notice} variant={noticeVariant} className="min-w-0 flex-1" />
+              <button
+                type="button"
+                onClick={() => setNotice("")}
+                aria-label="Tutup pemberitahuan"
+                className="rounded-lg p-2 text-[#889590] hover:bg-white"
+              >
                 ×
               </button>
             </div>
@@ -374,7 +405,7 @@ export function Dashboard({
             />
           </div>
 
-          <div className="mt-5 grid gap-5 2xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,.9fr)]">
+          <div className="mt-5 grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,.9fr)]">
             <section
               id="overview"
               className="rounded-2xl border border-[#e9edeb] bg-white p-5 shadow-[0_2px_8px_rgba(25,48,40,.025)] md:p-6"
@@ -475,7 +506,7 @@ export function Dashboard({
             </section>
           </div>
 
-          <div className="mt-5 grid gap-5 2xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,.9fr)]">
+          <div className="mt-5 grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,.9fr)]">
             <section id="queue" className="overflow-hidden rounded-2xl border border-[#e9edeb] bg-white shadow-[0_2px_8px_rgba(25,48,40,.025)]">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eff2f0] px-5 py-5 md:px-6">
                 <div>
@@ -601,6 +632,16 @@ export function Dashboard({
               )}
             </div>
           </div>
+          {enabledFeatures.includes("BOOKING") && (
+            <div className="mt-5">
+              <BookingManagement
+                businessSlug={businessSlug}
+                timezone={branch.timezone}
+                bookings={bookings}
+                readOnly={!canOperate}
+              />
+            </div>
+          )}
           {canConfigure && (
             <div className="mt-5 grid gap-5 2xl:grid-cols-2">
               <FeatureSettings
@@ -612,6 +653,7 @@ export function Dashboard({
                 branchId={branch.id}
                 qrEnabled={enabledFeatures.includes("QR_QUEUE")}
                 displayEnabled={enabledFeatures.includes("TV_DISPLAY")}
+                bookingEnabled={enabledFeatures.includes("BOOKING")}
               />
             </div>
           )}
@@ -627,6 +669,17 @@ export function Dashboard({
         </div>
       </section>
     </main>
+  );
+}
+
+function MobileNavLink({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      className="shrink-0 rounded-lg px-3 py-2 text-xs font-medium text-[#718079] transition hover:bg-[#edf5f1] hover:text-[#176b5b]"
+    >
+      {label}
+    </a>
   );
 }
 

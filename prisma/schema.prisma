@@ -98,6 +98,7 @@ model Branch {
   accessTokens   AccessToken[]
   scopes         MembershipBranchScope[]
   sequences      QueueSequence[]
+  bookingSlots   BookingSlot[]
 
   @@unique([businessId, slug])
   @@index([businessId, active])
@@ -193,6 +194,7 @@ model Service {
   counterServices  CounterService[]
   queues           Queue[]
   bookings         Booking[]
+  bookingSlots     BookingSlot[]
   accessTokens     AccessToken[]
   sequences        QueueSequence[]
 
@@ -324,9 +326,26 @@ model Booking {
   service     Service      @relation(fields: [serviceId], references: [id], onDelete: Restrict)
   customer    Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
   queue       Queue?
+  slot        BookingSlot?
+  statusAccessToken AccessToken?
 
   @@index([branchId, scheduledAt, status])
   @@index([businessId, scheduledAt])
+}
+
+model BookingSlot {
+  id        String   @id @default(cuid())
+  branchId  String
+  serviceId String
+  startsAt  DateTime
+  bookingId String?  @unique
+  createdAt DateTime @default(now())
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@unique([branchId, serviceId, startsAt])
+  @@index([branchId, startsAt, bookingId])
 }
 
 model Notification {
@@ -369,6 +388,7 @@ model AccessToken {
   branchId   String?
   serviceId  String?
   queueId    String?         @unique
+  bookingId  String?         @unique
   tokenHash  String          @unique
   type       AccessTokenType
   expiresAt  DateTime?
@@ -378,6 +398,7 @@ model AccessToken {
   branch     Branch?         @relation(fields: [branchId], references: [id], onDelete: Cascade)
   service    Service?        @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   queue      Queue?          @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  booking    Booking?        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@index([businessId, type, revokedAt])
 }

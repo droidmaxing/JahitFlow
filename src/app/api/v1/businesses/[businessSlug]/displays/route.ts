@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { AppError, errorResponse } from "@/modules/shared/errors";
+import { errorResponse, readJsonRequest } from "@/modules/shared/errors";
+import { validationAppError } from "@/modules/shared/validation-error";
 import { requireBusinessContext, requireRole } from "@/modules/tenancy/context";
 import { createDisplay } from "@/modules/display/display-service";
 
@@ -33,9 +34,12 @@ export async function GET(_request: Request, { params }: RouteContext) {
 export async function POST(request: Request, { params }: RouteContext) {
   try {
     const { businessSlug } = await params;
-    const parsed = createSchema.safeParse(await request.json());
+    const parsed = createSchema.safeParse(await readJsonRequest(request));
     if (!parsed.success) {
-      throw new AppError("Data display tidak valid.", 400, "INVALID_INPUT");
+      throw validationAppError(parsed.error, "Periksa kembali data display.", {
+        branchId: "Cabang",
+        name: "Nama display",
+      });
     }
     const context = await requireBusinessContext(businessSlug, parsed.data.branchId);
     const display = await createDisplay(context, parsed.data.branchId, parsed.data.name);

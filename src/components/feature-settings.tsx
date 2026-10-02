@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, LoaderCircle, LockKeyhole, ToggleLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { FeatureKey } from "@prisma/client";
+import { InlineNotice } from "@/components/inline-notice";
 
 const featureInfo: {
   key: FeatureKey;
@@ -32,6 +33,7 @@ export function FeatureSettings({
   const [enabled, setEnabled] = useState(new Set(enabledFeatures));
   const [saving, setSaving] = useState<FeatureKey | null>(null);
   const [notice, setNotice] = useState("");
+  const [noticeVariant, setNoticeVariant] = useState<"error" | "success">("success");
 
   async function toggle(key: FeatureKey) {
     const wasEnabled = enabled.has(key);
@@ -55,6 +57,7 @@ export function FeatureSettings({
         throw new Error(result.error?.message ?? "Pengaturan fitur gagal disimpan.");
       }
       setNotice("Pengaturan fitur tersimpan.");
+      setNoticeVariant("success");
       router.refresh();
     } catch (error) {
       setEnabled((current) => {
@@ -63,6 +66,7 @@ export function FeatureSettings({
         else rollback.delete(key);
         return rollback;
       });
+      setNoticeVariant("error");
       setNotice(error instanceof Error ? error.message : "Terjadi kesalahan.");
     } finally {
       setSaving(null);
@@ -86,9 +90,7 @@ export function FeatureSettings({
         <ToggleLeft className="size-5 text-[#889590]" />
       </div>
       {notice && (
-        <p role="status" className="mt-4 rounded-lg bg-[#f2f7f4] px-3 py-2 text-xs text-[#527c68]">
-          {notice}
-        </p>
+        <InlineNotice message={notice} variant={noticeVariant} className="mt-4" />
       )}
       <div className="mt-5 grid gap-2 sm:grid-cols-2">
         {featureInfo.map((feature) => {

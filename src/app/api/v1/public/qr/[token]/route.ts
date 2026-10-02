@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { errorResponse, AppError } from "@/modules/shared/errors";
+import { errorResponse, readJsonRequest } from "@/modules/shared/errors";
+import { validationAppError } from "@/modules/shared/validation-error";
 import {
   getQrConfiguration,
   issuePublicQueue,
@@ -26,9 +27,13 @@ const issueSchema = z.object({
 export async function POST(request: Request, { params }: RouteContext) {
   try {
     const { token } = await params;
-    const parsed = issueSchema.safeParse(await request.json());
+    const parsed = issueSchema.safeParse(await readJsonRequest(request));
     if (!parsed.success) {
-      throw new AppError("Data pengambilan nomor tidak valid.", 400, "INVALID_INPUT");
+      throw validationAppError(parsed.error, "Periksa kembali data Anda.", {
+        serviceId: "Layanan",
+        customerName: "Nama Anda",
+        customerPhone: "Nomor WhatsApp",
+      });
     }
     const result = await issuePublicQueue(token, request, parsed.data);
     return Response.json(

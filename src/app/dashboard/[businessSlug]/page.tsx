@@ -1,9 +1,12 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { listQueues } from "@/modules/queue/application/queue-service";
 import { requireBusinessContext } from "@/modules/tenancy/context";
 import { Dashboard } from "@/components/dashboard";
+import { listBranchBookings } from "@/modules/booking/application/booking-service";
+import { AppError } from "@/modules/shared/errors";
+import { ErrorState } from "@/components/error-state";
 
 type PageProps = { params: Promise<{ businessSlug: string }> };
 
@@ -14,7 +17,23 @@ export default async function DashboardPage({ params }: PageProps) {
   if (!session?.user) redirect("/login");
 
   const { businessSlug } = await params;
-  const context = await requireBusinessContext(businessSlug);
+  let context;
+  try {
+    context = await requireBusinessContext(businessSlug);
+  } catch (error) {
+    if (error instanceof AppError && error.status === 401) redirect("/login");
+    if (error instanceof AppError && error.status === 404) notFound();
+    if (error instanceof AppError && error.status === 403) {
+      return (
+        <ErrorState
+          code="403"
+          title="Akses ke workspace ditolak"
+          description="Akun Anda tidak memiliki izin untuk membuka workspace ini. Hubungi pemilik bisnis atau administrator."
+        />
+      );
+    }
+    throw error;
+  }
   const [business, services] = await Promise.all([
     prisma.business.findUniqueOrThrow({
       where: { id: context.businessId },
@@ -100,6 +119,20 @@ export default async function DashboardPage({ params }: PageProps) {
     where: { businessId: context.businessId, enabled: true },
     select: { featureKey: true },
   });
+  const bookingEnabled = featureRows.some((feature) => feature.featureKey === "BOOKING");
+  const bookingDateParts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: branch.timezone ?? business.timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const bookingDateValues = Object.fromEntries(
+    bookingDateParts.map((part) => [part.type, part.value]),
+  );
+  const today = `${bookingDateValues.year}-${bookingDateValues.month}-${bookingDateValues.day}`;
+  const bookings = bookingEnabled
+    ? await listBranchBookings(context, branch.id, today)
+    : [];
 
   return (
     <Dashboard
@@ -120,6 +153,14 @@ export default async function DashboardPage({ params }: PageProps) {
       role={context.role}
       userName={session.user.name ?? "Pengguna"}
       enabledFeatures={featureRows.map((feature) => feature.featureKey)}
+      bookings={bookings.map((booking) => ({
+        id: booking.id,
+        scheduledAt: booking.scheduledAt.toISOString(),
+        status: booking.status,
+        service: booking.service,
+        customer: booking.customer,
+        queue: booking.queue,
+      }))}
       metrics={{
         total: queues.length,
         waiting: waiting.length,

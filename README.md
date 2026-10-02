@@ -50,7 +50,14 @@ development only. Replace it and rotate `AUTH_SECRET` before deploying.
   immutable queue history, audit events, and an outbox record per mutation.
 - QR queue issuance and anonymous status links with hashed tokens, server-side
   feature checks, and database-backed rate limits.
+- Public appointment booking with 30-minute local-time slots, one booking per
+  service slot, concurrent slot locking, branch operating hours, confirmation
+  links, admin confirmation/cancellation, and same-day queue check-in.
 - Role-aware operational dashboard and a customer-facing QR queue flow.
+- Branded 404 and runtime-error pages, retryable availability feedback, and
+  accessible field-level validation messages for public queue and booking forms.
+- Searchable service pickers appear automatically when a business has more than
+  five active services; shorter lists keep the compact native select control.
 
 ## Verification
 
@@ -62,7 +69,6 @@ npm run build
 ```
 
 The application requires a configured MySQL instance for authenticated pages,
-seed data, and API/database integration flows. Unit tests for the queue state
-machine do not require a database. Public booking, WhatsApp delivery, branch
-administration, advertisement, and analytics reports are not implemented yet;
-the corresponding schema/configuration foundations are present where noted.
+seed data, and API/database integration flows. Unit tests for domain logic do not
+require a database. WhatsApp delivery, full branch administration,
+advertisement, and analytics reports are not implemented yet.

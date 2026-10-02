@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Clock3, RefreshCw, TicketCheck } from "lucide-react";
+import { InlineNotice } from "@/components/inline-notice";
 
 type QueueStatus = {
   ticketNumber: string;
@@ -75,9 +76,7 @@ export function PublicQueueStatus({ token }: { token: string }) {
       </div>
       <div className="space-y-4 p-6">
         {error && (
-          <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">
-            {error}
-          </p>
+          <InlineNotice message={error} />
         )}
         <div className="rounded-xl bg-[#f5f8f6] p-4">
           <p className="text-[10px] font-medium uppercase tracking-[.1em] text-[#9aa5a1]">
