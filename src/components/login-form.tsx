@@ -1,0 +1,111 @@
+"use client";
+
+import { signIn } from "next-auth/react";
+import { type FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  LoaderCircle,
+  LockKeyhole,
+  Mail,
+} from "lucide-react";
+
+export function LoginForm() {
+  const router = useRouter();
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setLoading(true);
+
+    const formData = new FormData(event.currentTarget);
+    const result = await signIn("credentials", {
+      email: formData.get("email"),
+      password: formData.get("password"),
+      redirect: false,
+    });
+
+    if (result?.error) {
+      setError("Email atau kata sandi tidak sesuai.");
+      setLoading(false);
+      return;
+    }
+    router.replace("/");
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <label className="block">
+        <span className="mb-2 block text-sm font-medium text-[#344440]">
+          Alamat email
+        </span>
+        <span className="relative block">
+          <Mail className="absolute left-3.5 top-1/2 size-[17px] -translate-y-1/2 text-[#97a39f]" />
+          <input
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            placeholder="nama@perusahaan.com"
+            className="h-12 w-full rounded-xl border border-[#e1e7e4] bg-white pl-11 pr-4 text-sm outline-none transition placeholder:text-[#aab4b0] focus:border-[#7db8a7] focus:ring-4 focus:ring-[#176b5b]/[.08]"
+          />
+        </span>
+      </label>
+      <label className="block">
+        <span className="mb-2 block text-sm font-medium text-[#344440]">
+          Kata sandi
+        </span>
+        <span className="relative block">
+          <LockKeyhole className="absolute left-3.5 top-1/2 size-[17px] -translate-y-1/2 text-[#97a39f]" />
+          <input
+            name="password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            required
+            placeholder="Masukkan kata sandi"
+            className="h-12 w-full rounded-xl border border-[#e1e7e4] bg-white pl-11 pr-12 text-sm outline-none transition placeholder:text-[#aab4b0] focus:border-[#7db8a7] focus:ring-4 focus:ring-[#176b5b]/[.08]"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((current) => !current)}
+            aria-label={
+              showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"
+            }
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#97a39f] hover:text-[#344440]"
+          >
+            {showPassword ? (
+              <EyeOff className="size-[17px]" />
+            ) : (
+              <Eye className="size-[17px]" />
+            )}
+          </button>
+        </span>
+      </label>
+      {error && (
+        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
+      )}
+      <button
+        type="submit"
+        disabled={loading}
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#176b5b] text-sm font-semibold text-white shadow-[0_5px_12px_rgba(23,107,91,.15)] transition hover:bg-[#125648] disabled:cursor-not-allowed disabled:opacity-70"
+      >
+        {loading ? (
+          <>
+            <LoaderCircle className="size-4 animate-spin" /> Memverifikasi...
+          </>
+        ) : (
+          <>
+            Masuk ke dashboard <ArrowRight className="size-4" />
+          </>
+        )}
+      </button>
+    </form>
+  );
+}

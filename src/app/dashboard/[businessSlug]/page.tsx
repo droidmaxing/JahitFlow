@@ -1,0 +1,143 @@
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { listQueues } from "@/modules/queue/application/queue-service";
+import { requireBusinessContext } from "@/modules/tenancy/context";
+import { Dashboard } from "@/components/dashboard";
+
+type PageProps = { params: Promise<{ businessSlug: string }> };
+
+export const dynamic = "force-dynamic";
+
+export default async function DashboardPage({ params }: PageProps) {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+
+  const { businessSlug } = await params;
+  const context = await requireBusinessContext(businessSlug);
+  const [business, services] = await Promise.all([
+    prisma.business.findUniqueOrThrow({
+      where: { id: context.businessId },
+      select: {
+        name: true,
+        timezone: true,
+        branches: {
+          where: {
+            active: true,
+            ...(context.branchIds ? { id: { in: context.branchIds } } : {}),
+          },
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            name: true,
+            timezone: true,
+            counters: {
+              where: { active: true },
+              orderBy: { createdAt: "asc" },
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                activeQueue: {
+                  select: {
+                    ticketNumber: true,
+                    status: true,
+                    service: { select: { name: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.service.findMany({
+      where: { businessId: context.businessId, active: true },
+      select: { id: true, name: true, code: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+
+  const branch = business.branches[0];
+  if (!branch) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-[#f7f8fa] p-6">
+        <div className="max-w-md rounded-2xl border border-[#e9edeb] bg-white p-8 text-center shadow-sm">
+          <p className="text-sm font-medium text-[#176b5b]">Belum ada cabang</p>
+          <h1 className="mt-2 text-xl font-semibold text-[#182321]">
+            Bisnis Anda belum memiliki cabang aktif
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-[#75827f]">
+            Hubungi Super Admin bisnis untuk menyiapkan cabang operasional.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  const queues = await listQueues(context, branch.id);
+  const completed = queues.filter((queue) => queue.status === "COMPLETED");
+  const waiting = queues.filter((queue) => queue.status === "WAITING");
+  const active = queues.filter(
+    (queue) => queue.status === "CALLED" || queue.status === "SERVING",
+  );
+  const serviceMinutes = completed
+    .filter((queue) => queue.startedAt && queue.completedAt)
+    .map(
+      (queue) =>
+        (queue.completedAt!.getTime() - queue.startedAt!.getTime()) / 60_000,
+    );
+  const averageServiceMinutes = serviceMinutes.length
+    ? Math.round(serviceMinutes.reduce((sum, minutes) => sum + minutes, 0) / serviceMinutes.length)
+    : 0;
+  const averageWaitMinutes = queues
+    .filter((queue) => queue.startedAt)
+    .map((queue) => (queue.startedAt!.getTime() - queue.issuedAt.getTime()) / 60_000);
+  const waitTime = averageWaitMinutes.length
+    ? Math.round(averageWaitMinutes.reduce((sum, minutes) => sum + minutes, 0) / averageWaitMinutes.length)
+    : 0;
+  const featureRows = await prisma.featureConfiguration.findMany({
+    where: { businessId: context.businessId, enabled: true },
+    select: { featureKey: true },
+  });
+
+  return (
+    <Dashboard
+      businessName={business.name}
+      businessSlug={businessSlug}
+      branch={{
+        id: branch.id,
+        name: branch.name,
+        timezone: branch.timezone ?? business.timezone,
+        services,
+        counters: branch.counters.map((counter) => ({
+          ...counter,
+          currentTicket: counter.activeQueue?.ticketNumber ?? null,
+          currentService: counter.activeQueue?.service.name ?? null,
+          queueStatus: counter.activeQueue?.status ?? null,
+        })),
+      }}
+      role={context.role}
+      userName={session.user.name ?? "Pengguna"}
+      enabledFeatures={featureRows.map((feature) => feature.featureKey)}
+      metrics={{
+        total: queues.length,
+        waiting: waiting.length,
+        active: active.length,
+        completed: completed.length,
+        averageWaitMinutes: waitTime,
+        averageServiceMinutes,
+      }}
+      queues={queues.map((queue) => ({
+        id: queue.id,
+        ticketNumber: queue.ticketNumber,
+        status: queue.status,
+        issuedAt: queue.issuedAt.toISOString(),
+        serviceName: queue.service.name,
+        serviceCode: queue.service.code,
+        counterName: queue.counter?.name ?? null,
+        customerName: queue.customer?.name ?? "Pelanggan",
+      }))}
+    />
+  );
+}
