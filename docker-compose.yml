@@ -3,6 +3,7 @@ services:
   web-antrian-db:
     image: web-antrian-mysql
     container_name: web-antrian-mysql
+    restart: unless-stopped
     environment:
       MYSQL_DATABASE: queue_management
       MYSQL_USER: queue_user
@@ -22,6 +23,7 @@ services:
     build: .
     image: web-antrian-app
     container_name: web-antrian-app
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
