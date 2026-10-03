@@ -1,0 +1,41 @@
+version: "3.8"
+services:
+  jahit-flow-db:
+    image: mysql:8.0
+    container_name: jahit-flow-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: konveksi_db
+      MYSQL_USER: konveksi_app
+      MYSQL_PASSWORD: konveksi_pass
+      MYSQL_ROOT_PASSWORD: root_pass
+    ports:
+      - "3308:3306"
+    volumes:
+      - jahit_flow_db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  jahit-flow-app:
+    build: .
+    image: jahit-flow-app
+    container_name: jahit-flow-app
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      DATABASE_URL: mysql://konveksi_app:***@jahit-flow-db:3306/konveksi_db
+      AUTH_SECRET: jahit-flow-secret-32-chars-long!!
+      AUTH_TRUST_HOST: "true"
+      SEED_OWNER_PASSWORD: jahit-flow-owner-password-123
+      SEED_ADMIN_PASSWORD: jahit-flow-admin-password-456
+    depends_on:
+      jahit-flow-db:
+        condition: service_healthy
+    command: sh -c "npx prisma migrate deploy && npx prisma generate && npm run db:seed && npm run build && npm start"
+
+volumes:
+  jahit_flow_db:
