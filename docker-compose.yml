@@ -1,7 +1,7 @@
 version: "3.8"
 services:
-  web-antrian-db:
-    image: web-antrian-mysql
+  mysql:
+    image: mysql:8.0
     container_name: web-antrian-mysql
     restart: unless-stopped
     environment:
@@ -19,7 +19,7 @@ services:
       timeout: 3s
       retries: 10
 
-  web-antrian-app:
+  app:
     build: .
     image: web-antrian-app
     container_name: web-antrian-app
@@ -27,11 +27,11 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: mysql://queue_user:queue_pass@web-antrian-db:3306/queue_management
+      DATABASE_URL: mysql://queue_user:***@mysql:3306/queue_management
       AUTH_SECRET: antrian-secret-32-chars-long!!
       AUTH_TRUST_HOST: "true"
     depends_on:
-      web-antrian-db:
+      mysql:
         condition: service_healthy
     command: sh -c "npx prisma migrate deploy && npx prisma generate && npm run db:seed && npm run build && npm start"
 
