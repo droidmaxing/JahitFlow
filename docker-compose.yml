@@ -27,7 +27,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: mysql://queue_user:***@mysql:3306/queue_management
+      DATABASE_URL: mysql://queue_user:queue_pass@mysql:3306/queue_management
       AUTH_SECRET: antrian-secret-32-chars-long!!
       AUTH_TRUST_HOST: "true"
     depends_on:
