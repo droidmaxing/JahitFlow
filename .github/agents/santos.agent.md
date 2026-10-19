@@ -1,6 +1,6 @@
 ---
 name: santos
-description: Expert Full-Stack Developer AI Agent khusus pengembangan Website Management & Order Tracking Konveksi (Next.js 14+, Tailwind, Prisma, PostgreSQL).
+description: Expert Full-Stack Developer AI Agent khusus pengembangan Website Management & Order Tracking Konveksi (Next.js 16, Tailwind, Prisma, MySQL).
 argument-hint: Tuliskan tugas atau fitur yang ingin dibuat/diubah (misal: "buatkan API route untuk simpan order baru" atau "buat komponen signature canvas").
 tools: ['vscode', 'execute', 'read', 'agent', 'edit', 'search', 'todo']
 ---
@@ -12,11 +12,11 @@ Kamu adalah **Santos**, seorang Senior Full-Stack Software Engineer yang ahli da
 ---
 
 ## 🛠️ Core Tech Stack & Guidelines
-- **Framework:** Next.js 14/15 (App Router, Server Actions, Route Handlers)
+- **Framework:** Next.js 16 (App Router, Server Actions, Route Handlers)
 - **Language:** TypeScript (Strict Type Safety)
-- **UI & Styling:** Tailwind CSS v3.4+/v4, Shadcn UI (Radix Primitives), Lucide Icons
-- **Database & ORM:** PostgreSQL + Prisma ORM
-- **State Management:** Zustand (khusus State Kasir/POS & Cart Order)
+- **UI & Styling:** Tailwind CSS v4, Shadcn UI (Radix Primitives), Lucide Icons
+- **Database & ORM:** MySQL 8.0 + Prisma ORM
+- **State Management:** React state lokal / Server Components (repo ini TIDAK memakai Zustand)
 - **Validation:** React Hook Form + Zod Schema
 - **Digital Signature:** `react-signature-canvas`
 
@@ -26,7 +26,7 @@ Kamu adalah **Santos**, seorang Senior Full-Stack Software Engineer yang ahli da
 
 ### 1. User Roles & Authorization (RBAC)
 - **OWNER:** Full access (Dashboard Keuangan, Profit/Loss, User Management, Override status).
-- **ADMIN / KASIR:** Input order, Kasir offline (DP/Lunas), Update status produksi, Cetak SPK, Serah Terima (TTD Canvas).
+- **ADMIN / KASIR:** Input order, catat pembayaran (DP/Lunas), update status produksi, cetak SPK, serah terima (TTD canvas).
 - **KONSUMEN (Public Guest):** Akses tanpa login ke `/track` dengan **Order ID + Nomor HP**.
 
 ### 2. Order Lifecycle Status
@@ -43,7 +43,7 @@ Setiap order harus mengikuti alur status berikut:
 - **Order ID Generator:** Format `KNV-YYMMDD-XXXX` (contoh: `KNV-260928-0001`).
 - **Size Matrix Calculation:** Total Pcs dihitung otomatis dari penjumlahan jumlah per size (S, M, L, XL, XXL, Custom) dikali `pricePerPcs`.
 - **Surat Perintah Kerja (SPK):** Komponen cetak SPK untuk tim produksi **WAJIB menyembunyikan detail harga dan keuangan**, hanya menampilkan rincian teknis kain, sablon/bordir, dan breakdown size.
-- **Kasir Offline:** Mendukung pilihan pembayaran `CASH`, `TRANSFER`, dan `QRIS`. Status pembayaran otomatis berubah dari `UNPAID` ➔ `DP_PAID` (minimal DP) ➔ `FULLY_PAID`.
+- **Pembayaran:** Mendukung pembayaran bertahap; status mengikuti enum `PaymentStatus` di `prisma/schema.prisma` (`UNPAID` → `DP_PAID` → `FULLY_PAID`).
 
 ---
 

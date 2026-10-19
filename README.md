@@ -34,6 +34,22 @@ laporan bisnis. Pelanggan dapat melacak pesanan melalui portal publik.
 6. Owner memantau laporan, mengunduh Excel, mengatur nomor WhatsApp layanan,
    dan mengelola akun Admin/Kasir.
 
+## Menjalankan cepat dengan Docker Compose
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+docker compose ps                  # jahit-flow-mysql (healthy), jahit-flow-app
+curl -fsS http://127.0.0.1:3001
+docker compose logs -f --tail=50 app
+docker compose down                # JANGAN pakai -v: volume data MySQL ikut terhapus
+```
+
+Compose mengisi `DATABASE_URL`, `AUTH_SECRET`, dan kata sandi seed untuk service
+`app`, lalu menjalankan `prisma migrate deploy` + generate + seed + build + start
+secara otomatis. Port host: aplikasi `3001:3000`, MySQL `3308:3306`. Kredensial
+dan secret di compose hanya untuk pengembangan lokal.
+
 ## Menjalankan di komputer lokal
 
 ### Prasyarat
@@ -105,6 +121,7 @@ contoh.
 | `npm run dev` | Menjalankan server pengembangan |
 | `npm run lint` | Memeriksa aturan ESLint |
 | `npm run typecheck` | Memeriksa tipe TypeScript |
+| `npm test` | Unit test (`node --test` via tsx, `tests/*.test.ts`) |
 | `npm run build` | Membuat build produksi |
 | `npm run start` | Menjalankan build produksi |
 | `npm run db:generate` | Membuat Prisma Client |
@@ -113,4 +130,12 @@ contoh.
 | `npm run db:seed:products` | Menambahkan template produk contoh |
 | `npm run db:studio` | Membuka Prisma Studio |
 
+Gate sebelum commit (semua harus exit 0): `npx prisma generate` -> `npm run lint` ->
+`npm run typecheck` -> `npm test` -> `npm run build`. CI di `.github/workflows/ci.yml`
+menjalankan urutan yang sama pada Node 20. Jalankan `npx prisma generate` lebih dulu,
+tanpa itu `npm run typecheck` gagal pada `prisma/seed.ts` karena Prisma Client di
+`node_modules` belum sinkron dengan schema.
+
 Gunakan migrasi Prisma untuk perubahan database; hindari `prisma db push`.
+
+Aturan kerja untuk agen AI maupun kontributor ada di `AGENTS.md`.

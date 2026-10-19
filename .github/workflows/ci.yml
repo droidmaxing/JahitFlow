@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-test:
-    name: Lint, Typecheck & Build
+    name: Lint, Typecheck, Test & Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -31,6 +31,9 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Run Unit Tests
+        run: npm test
 
       - name: Build Next.js application
         env:

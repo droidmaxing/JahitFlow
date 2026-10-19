@@ -3,7 +3,7 @@
 ## 1. Fakta repo
 
 - Remote: `git@github.com:droidmaxing/JahitFlow.git` — branch kerja: `main`
-- Stack: Next.js (App Router, TypeScript strict), Prisma ORM, MySQL 8.0
+- Stack: Next.js 16 (App Router, TypeScript strict), Prisma ORM, MySQL 8.0
 - Database: MySQL 8.0, schema `konveksi_db`
 - Struktur: `app/` (App Router, termasuk halaman publik `/track/[orderId]`), `components/`, `lib/`, `actions/` (server actions), `prisma/schema.prisma`, `prisma/seed.ts`. Repo ini **tidak** memakai folder `src/`.
 
@@ -15,7 +15,7 @@ docker compose up -d --build
 docker compose ps                  # jahit-flow-mysql (healthy), jahit-flow-app
 curl -fsS http://127.0.0.1:3001
 docker compose logs -f --tail=50 app
-docker compose down                # JANGAN pakai -v: volume jahit-flow-mysql-data berisi data
+docker compose down                # JANGAN pakai -v: volume jahit_flow_db berisi data
 ```
 
 Port host: web `3001:3000`, mysql `3308:3306`.
@@ -27,14 +27,15 @@ Lokal: `npm install && npx prisma generate && npm run dev`.
 npx prisma generate     # WAJIB: tanpa ini tsc gagal (Prisma.Decimal tidak dikenal di prisma/seed.ts)
 npm run lint            # ESLint
 npm run typecheck       # tsc --noEmit
+npm test                # unit test (node --test via tsx, tests/*.test.ts)
 npm run build           # Next.js production build
 ```
 
-Urutan ini sudah diverifikasi: `prisma generate` + lint + typecheck + build semuanya exit 0.
+Urutan ini sudah diverifikasi: `prisma generate` + lint + typecheck + test + build semuanya exit 0.
 **Catatan penting:** `npm run typecheck` TANPA `prisma generate` lebih dulu akan gagal
 (`prisma/seed.ts(...): error TS2339: Property 'Decimal' does not exist on type 'typeof Prisma'`)
 karena Prisma client di `node_modules` tidak sinkron dengan schema — bukan bug kode.
-CI: `.github/workflows/ci.yml` menjalankan generate → lint → typecheck → build.
+CI: `.github/workflows/ci.yml` menjalankan generate → lint → typecheck → test → build.
 
 ## 4. Database & migrasi
 
@@ -143,7 +144,7 @@ Format: `<tipe>: <deskripsi bahasa Indonesia>` — `feat`, `fix`, `refactor`, `d
 
 - Jalankan `npx prisma generate` setiap kali `schema.prisma` berubah atau `node_modules` baru — penyebab error tipe `Prisma.*` nomor satu di repo ini.
 - Host MySQL di dalam compose adalah `mysql`, bukan `localhost`/`127.0.0.1`.
-- `docker compose down -v` menghapus volume `jahit-flow-mysql-data` — dilarang di server ini.
+- `docker compose down -v` menghapus volume `jahit_flow_db` — dilarang di server ini.
 - Halaman `/track/[orderId]` bersifat publik; jangan menambahkan data internal (harga modal, data pelanggan lain) ke payload-nya.
 
 <!-- BEGIN:nextjs-agent-rules -->

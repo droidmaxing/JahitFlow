@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = { title: "Pesanan baru" };
 
+export const dynamic = "force-dynamic";
+
 export default async function NewOrderPage() {
   const productTemplates = await prisma.productTemplate.findMany({
     where: { isActive: true },
